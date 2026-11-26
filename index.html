@@ -3,1239 +3,1275 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ADR Identification Dashboard — PV Task 1</title>
+<title>ADR Insight — Adverse Drug Reaction Identification Dashboard</title>
+<meta name="description" content="Educational pharmacovigilance dashboard: 18 synthetic case reports analysed for suspect drugs, timelines, seriousness, expectedness and WHO-UMC / Naranjo causality." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%230071E3'/><path d='M20 40l24-24M26 46a10 10 0 01-14-14l12-12a10 10 0 0114 14z' stroke='white' stroke-width='5' fill='none' stroke-linecap='round'/></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ═══════════════════════════════════════════════
-   ROOT TOKENS — Workora / PharmaClinical Theme
-   ═══════════════════════════════════════════════ */
 :root{
-  --bg-dark:#0d1117;
-  --bg-card:#161b22;
-  --bg-card2:#1c2230;
-  --bg-glass:rgba(22,27,34,.85);
-  --accent:#4f8ef7;
-  --accent2:#38d9a9;
-  --accent3:#f8b400;
-  --accent4:#e95c7b;
-  --accent5:#a78bfa;
-  --text:#e6edf3;
-  --text-muted:#8b949e;
-  --border:#30363d;
-  --shadow:0 4px 24px rgba(0,0,0,.55);
-  --radius:14px;
-  --font:'Inter',system-ui,sans-serif;
+  --primary:#0071E3;
+  --primary-2:#0066CC;
+  --primary-soft:#E8F1FC;
+  --ink:#1D1D1F;
+  --ink-2:#424245;
+  --muted:#86868B;
+  --muted-2:#6E6E73;
+  --bg:#FFFFFF;
+  --surface:#F5F5F7;
+  --border:#E5E7EB;
+  --border-2:#D2D2D7;
+  --red:#D92D20;   --red-soft:#FEF3F2;
+  --amber:#B54708; --amber-soft:#FFFAEB;
+  --green:#067647; --green-soft:#ECFDF3;
+  --violet:#6941C6;--violet-soft:#F4F3FF;
+  --gray-soft:#F2F4F7;
+  --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:22px; --r-full:9999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow:0 8px 30px rgba(0,0,0,.06);
+  --shadow-lg:0 24px 60px rgba(0,0,0,.14);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Inter",system-ui,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
-
-/* ─── RESETS ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg-dark);color:var(--text);font-family:var(--font);min-height:100vh;line-height:1.6}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased;font-size:15px}
+a{color:var(--primary-2);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font-family:inherit}
+:focus-visible{outline:3px solid rgba(0,113,227,.35);outline-offset:2px;border-radius:6px}
+.mono{font-family:var(--mono);font-size:.92em}
 
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:var(--bg-dark)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* ── Nav ── */
+.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.78);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(0,0,0,.06)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink);letter-spacing:-.2px}
+.brand:hover{text-decoration:none}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--primary);display:grid;place-items:center}
+.nav-links{display:flex;gap:22px;flex:1}
+.nav-links a{font-size:13px;color:var(--ink-2);padding:4px 0;border-bottom:2px solid transparent}
+.nav-links a:hover{color:var(--ink);text-decoration:none}
+.nav-links a.active{color:var(--ink);border-bottom-color:var(--ink)}
+.nav-actions{display:flex;gap:8px}
+.menu-btn{display:none;background:none;border:0;cursor:pointer;padding:6px}
 
-/* ─── HEADER ─── */
-header{
-  background:linear-gradient(135deg,#0f1923 0%,#1a2540 50%,#0d1117 100%);
-  border-bottom:1px solid var(--border);
-  padding:0 2rem;
-  position:sticky;top:0;z-index:999;
-  backdrop-filter:blur(12px);
-}
-.header-inner{
-  max-width:1400px;margin:0 auto;
-  display:flex;align-items:center;gap:1.2rem;
-  padding:.9rem 0;
-  flex-wrap:wrap;
-}
-.logo{
-  display:flex;align-items:center;gap:.7rem;
-  font-weight:800;font-size:1.25rem;letter-spacing:-.3px;
-}
-.logo-icon{
-  width:38px;height:38px;border-radius:10px;
-  background:linear-gradient(135deg,var(--accent),var(--accent5));
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;
-  box-shadow:0 0 16px rgba(79,142,247,.4);
-}
-.logo span{color:var(--accent)}
-.header-badge{
-  background:linear-gradient(90deg,rgba(79,142,247,.18),rgba(167,139,250,.18));
-  border:1px solid rgba(79,142,247,.35);
-  border-radius:999px;padding:.25rem .9rem;font-size:.72rem;
-  font-weight:600;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;
-}
-.header-actions{margin-left:auto;display:flex;gap:.7rem;flex-wrap:wrap}
-.btn{
-  display:inline-flex;align-items:center;gap:.45rem;
-  padding:.5rem 1.1rem;border-radius:8px;font-size:.82rem;font-weight:600;
-  cursor:pointer;border:none;transition:all .22s;text-decoration:none;
-}
-.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent5));color:#fff}
-.btn-primary:hover{filter:brightness(1.15);transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,142,247,.35)}
-.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
-.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.08)}
-.btn-success{background:linear-gradient(135deg,var(--accent2),#20c997);color:#fff}
-.btn-success:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.btn-danger{background:linear-gradient(135deg,var(--accent4),#c0392b);color:#fff}
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 22px;border-radius:var(--r-full);font-size:15px;font-weight:500;border:1px solid transparent;cursor:pointer;transition:background .2s,color .2s,border-color .2s;white-space:nowrap;text-decoration:none!important}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:#0077ED}
+.btn-secondary{background:transparent;color:var(--primary-2);border-color:var(--primary-2)}
+.btn-secondary:hover{background:var(--primary-soft)}
+.btn-ghost{background:var(--surface);color:var(--ink)}
+.btn-ghost:hover{background:#EBEBEF}
+.btn-sm{height:32px;padding:0 14px;font-size:13px}
+.btn-link{background:none;border:0;color:var(--primary-2);cursor:pointer;font-size:14px;padding:0}
+.btn-link:hover{text-decoration:underline}
+.btn svg{flex-shrink:0}
 
-/* ─── LAYOUT ─── */
-.container{max-width:1400px;margin:0 auto;padding:1.8rem 2rem 4rem}
+/* ── Layout ── */
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+section.block{padding:88px 0}
+section.alt{background:var(--surface)}
+.eyebrow{font-size:13px;font-weight:600;color:var(--primary);letter-spacing:.02em;margin-bottom:10px}
+h1.display{font-size:clamp(38px,5.6vw,64px);line-height:1.05;letter-spacing:-.025em;font-weight:700}
+h2.title{font-size:clamp(30px,3.6vw,44px);line-height:1.1;letter-spacing:-.02em;font-weight:700}
+.lead{font-size:clamp(17px,1.6vw,21px);line-height:1.5;color:var(--muted-2);max-width:760px}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:40px}
+.sec-head .lead{margin-top:12px;font-size:18px}
+h3{font-size:19px;font-weight:600;letter-spacing:-.01em}
+h4{font-size:15px;font-weight:600}
+.muted{color:var(--muted-2)}
+.small{font-size:13px}
+.grid{display:grid;gap:20px}
 
-/* ─── SECTION HEADINGS ─── */
-.section-head{
-  display:flex;align-items:center;gap:.7rem;
-  margin-bottom:1.2rem;font-size:1rem;font-weight:700;
-  color:var(--text);letter-spacing:-.1px;
-}
-.section-head .pill{
-  font-size:.7rem;padding:.2rem .6rem;border-radius:999px;
-  background:rgba(79,142,247,.18);color:var(--accent);font-weight:600;
-}
+/* ── Hero ── */
+.hero{padding:80px 0 72px;background:radial-gradient(1200px 500px at 85% -10%,#E8F1FC 0%,rgba(232,241,252,0) 60%),#fff}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center}
+.hero .lead{margin:22px 0 32px}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap}
+.hero-note{display:flex;align-items:center;gap:8px;margin-top:28px;font-size:13px;color:var(--muted-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.hero-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow);padding:24px;position:relative}
+.hero-card .hc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.hero-card .hc-id{font-family:var(--mono);font-size:13px;color:var(--muted-2)}
+.hero-card .hc-title{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.hero-card .hc-sub{color:var(--muted-2);font-size:14px;margin-top:2px}
+.hc-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.hc-fact{background:var(--surface);border-radius:12px;padding:10px 12px}
+.hc-fact b{display:block;font-size:16px}
+.hc-fact span{font-size:12px;color:var(--muted-2)}
+.hc-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:14px;margin-top:6px}
 
-/* ─── STAT CARDS ─── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1rem;margin-bottom:2rem}
-.stat-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1.3rem 1.4rem;position:relative;overflow:hidden;
-  transition:transform .2s,box-shadow .2s;
-}
-.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.stat-card::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,var(--c1,.2),transparent 70%);
-  opacity:.12;
-}
-.stat-card .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;margin-bottom:.4rem}
-.stat-card .value{font-size:2rem;font-weight:800;line-height:1;margin-bottom:.2rem}
-.stat-card .sub{font-size:.75rem;color:var(--text-muted)}
-.stat-card .icon{font-size:1.6rem;position:absolute;top:1rem;right:1.2rem;opacity:.25}
+/* ── KPIs ── */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.kpi{background:#fff;padding:22px 22px 20px}
+.kpi .k-label{font-size:13px;color:var(--muted-2);display:flex;align-items:center;gap:6px}
+.kpi .k-val{font-size:36px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px;line-height:1.1}
+.kpi .k-sub{font-size:12.5px;color:var(--muted)}
+.kpi .k-bar{height:4px;background:var(--surface);border-radius:4px;margin-top:12px;overflow:hidden}
+.kpi .k-bar i{display:block;height:100%;border-radius:4px;background:var(--primary)}
 
-/* ─── TABS ─── */
-.tabs{display:flex;gap:.4rem;margin-bottom:1.4rem;flex-wrap:wrap}
-.tab{
-  padding:.55rem 1.2rem;border-radius:8px;font-size:.82rem;font-weight:600;
-  cursor:pointer;border:1px solid var(--border);color:var(--text-muted);
-  background:var(--bg-card);transition:all .2s;user-select:none;
-}
-.tab.active{background:linear-gradient(135deg,var(--accent),var(--accent5));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(79,142,247,.3)}
-.tab:hover:not(.active){border-color:var(--accent);color:var(--accent)}
-.tab-panel{display:none}
-.tab-panel.active{display:block}
+/* ── Insight cards ── */
+.insights{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.insight{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:22px}
+.insight .i-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;margin-bottom:14px;font-size:17px}
+.insight h4{margin-bottom:6px}
+.insight p{font-size:14px;color:var(--muted-2)}
 
-/* ─── SEARCH / FILTER BAR ─── */
-.filter-bar{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1rem 1.2rem;margin-bottom:1.2rem;
-  display:flex;gap:.8rem;flex-wrap:wrap;align-items:flex-end;
-}
-.filter-group{display:flex;flex-direction:column;gap:.35rem;flex:1;min-width:140px}
-.filter-group label{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}
-.filter-group input,.filter-group select{
-  background:var(--bg-dark);border:1px solid var(--border);border-radius:7px;
-  padding:.48rem .75rem;color:var(--text);font-size:.85rem;outline:none;
-  transition:border-color .2s;
-}
-.filter-group input:focus,.filter-group select:focus{border-color:var(--accent)}
-.filter-group select option{background:var(--bg-dark)}
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-full);font-size:12px;font-weight:500;white-space:nowrap;background:var(--gray-soft);color:var(--ink-2)}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
+.badge.nodot::before{display:none}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-green{background:var(--green-soft);color:var(--green)}
+.b-blue{background:var(--primary-soft);color:var(--primary-2)}
+.b-violet{background:var(--violet-soft);color:var(--violet)}
+.b-gray{background:var(--gray-soft);color:var(--muted-2)}
 
-/* ─── TABLE ─── */
-.table-wrap{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  overflow:auto;max-height:520px;
-}
-table{width:100%;border-collapse:collapse;min-width:900px}
-thead{position:sticky;top:0;z-index:10}
-thead th{
-  background:var(--bg-card2);padding:.75rem 1rem;
-  font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--text-muted);border-bottom:1px solid var(--border);
-  cursor:pointer;white-space:nowrap;user-select:none;transition:color .18s;
-}
-thead th:hover{color:var(--accent)}
-thead th .sort-arrow{margin-left:.3rem;opacity:.5;font-size:.7rem}
-tbody tr{border-bottom:1px solid rgba(48,54,61,.5);transition:background .15s}
-tbody tr:hover{background:rgba(79,142,247,.06)}
-tbody td{padding:.7rem 1rem;font-size:.83rem;vertical-align:top}
-tbody tr:last-child{border-bottom:none}
+/* ── Filters ── */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.search{position:relative;flex:1 1 280px}
+.search input{width:100%;height:44px;border-radius:var(--r-full);border:1px solid var(--border-2);background:#fff;padding:0 16px 0 42px;font-size:15px;font-family:inherit;color:var(--ink)}
+.search input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px rgba(0,113,227,.12)}
+.search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.select{height:44px;border-radius:var(--r-full);border:1px solid var(--border-2);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%2386868B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;padding:0 36px 0 16px;font-size:14px;font-family:inherit;color:var(--ink);appearance:none;-webkit-appearance:none;cursor:pointer}
+.select:focus{outline:none;border-color:var(--primary)}
+.seg{display:inline-flex;background:#E8E8ED;border-radius:var(--r-full);padding:3px}
+.seg button{border:0;background:transparent;height:38px;padding:0 16px;border-radius:var(--r-full);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.chip{height:32px;padding:0 14px;border-radius:var(--r-full);border:1px solid var(--border);background:#fff;font-size:13px;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:var(--border-2)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip .n{font-size:11px;opacity:.65}
+.result-line{font-size:13px;color:var(--muted-2);margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
-/* ─── BADGES ─── */
-.badge{
-  display:inline-flex;align-items:center;gap:.3rem;
-  padding:.22rem .65rem;border-radius:999px;font-size:.72rem;font-weight:600;
-  white-space:nowrap;
-}
-.badge-serious{background:rgba(233,92,123,.18);color:#f07a98;border:1px solid rgba(233,92,123,.3)}
-.badge-not-serious{background:rgba(56,217,169,.18);color:var(--accent2);border:1px solid rgba(56,217,169,.3)}
-.badge-hosp{background:rgba(248,180,0,.18);color:#f8c400;border:1px solid rgba(248,180,0,.3)}
-.badge-med{background:rgba(79,142,247,.18);color:var(--accent);border:1px solid rgba(79,142,247,.3)}
-.badge-known{background:rgba(56,217,169,.12);color:var(--accent2)}
-.badge-unexpected{background:rgba(248,180,0,.12);color:#f8c400}
-.badge-pos{background:rgba(56,217,169,.14);color:var(--accent2)}
-.badge-neg{background:rgba(233,92,123,.14);color:#f07a98}
-.badge-unk{background:rgba(139,148,158,.14);color:var(--text-muted)}
-.badge-cause{background:rgba(167,139,250,.18);color:var(--accent5);border:1px solid rgba(167,139,250,.3)}
+/* ── Table ── */
+.table-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.table-scroll{overflow:auto;max-height:640px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{position:sticky;top:0;background:#FAFAFC;z-index:1;text-align:left;font-weight:600;font-size:12px;color:var(--muted-2);padding:12px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+thead th .arr{opacity:.4;margin-left:3px}
+thead th.sorted .arr{opacity:1;color:var(--primary)}
+tbody td{padding:13px 14px;border-bottom:1px solid #F0F0F3;vertical-align:middle;white-space:nowrap}
+tbody tr{transition:background .15s}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:#F8FAFE}
+tbody tr:last-child td{border-bottom:0}
+.cid{font-family:var(--mono);font-size:13px;color:var(--primary-2);font-weight:600}
+.td-sub{font-size:12px;color:var(--muted)}
+.onset{display:inline-flex;align-items:center;gap:8px}
+.onset-bar{width:56px;height:6px;border-radius:3px;background:var(--surface);overflow:hidden}
+.onset-bar i{display:block;height:100%;background:var(--primary);border-radius:3px}
+.empty{padding:60px 20px;text-align:center;color:var(--muted-2)}
 
-/* ─── CAUSALITY SCALE ─── */
-.caus-bar{display:inline-flex;gap:3px;align-items:center;vertical-align:middle}
-.caus-seg{width:10px;height:10px;border-radius:2px;opacity:.3}
-.caus-seg.on{opacity:1}
+/* ── Case cards ── */
+.case-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.case-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;cursor:pointer;transition:box-shadow .2s,transform .2s,border-color .2s;display:flex;flex-direction:column;gap:12px}
+.case-card:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-2px)}
+.case-card .cc-top{display:flex;justify-content:space-between;align-items:center}
+.case-card .cc-title{font-size:18px;font-weight:650;font-weight:600;letter-spacing:-.01em}
+.case-card .cc-sub{font-size:13px;color:var(--muted-2)}
+.case-card .cc-meta{display:flex;gap:6px;flex-wrap:wrap}
+.mini-tl{position:relative;height:30px;margin-top:4px}
+.mini-tl .line{position:absolute;left:0;right:0;top:13px;height:3px;background:var(--surface);border-radius:2px}
+.mini-tl .fill{position:absolute;left:0;top:13px;height:3px;background:var(--primary);border-radius:2px}
+.mini-tl .pt{position:absolute;top:8px;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--primary);transform:translateX(-50%)}
+.mini-tl .lbl{position:absolute;top:-4px;font-size:10.5px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
 
-/* ─── CHARTS GRID ─── */
-.charts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1.2rem;margin-bottom:1.8rem}
-.chart-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1.3rem 1.5rem;
-}
-.chart-card h3{font-size:.88rem;font-weight:700;color:var(--text-muted);margin-bottom:1rem;text-transform:uppercase;letter-spacing:.4px}
-.chart-card canvas{max-height:230px}
+/* ── Charts ── */
+.chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:22px}
+.card.span2{grid-column:span 2}
+.card.span3{grid-column:1/-1}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px}
+.card-desc{font-size:13px;color:var(--muted-2);margin-bottom:16px}
+.chart-box{position:relative;height:240px}
+.chart-box.tall{height:300px}
+.heat{width:100%;border-collapse:separate;border-spacing:4px;font-size:13px}
+.heat th{font-weight:500;color:var(--muted-2);font-size:12px;padding:4px 6px;text-align:center;position:static;background:none;border:0}
+.heat th.row{text-align:left;color:var(--ink);font-weight:500}
+.heat td{height:40px;text-align:center;border-radius:8px;font-weight:600;border:0;padding:0}
+.bars .bar-row{display:grid;grid-template-columns:150px 1fr 44px;gap:12px;align-items:center;padding:7px 0;font-size:14px}
+.bars .bar-track{height:10px;background:var(--surface);border-radius:6px;overflow:hidden}
+.bars .bar-track i{display:block;height:100%;border-radius:6px}
+.bars .bar-n{text-align:right;color:var(--muted-2);font-variant-numeric:tabular-nums}
 
-/* ─── DETAIL PANEL ─── */
-.detail-backdrop{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;
-  backdrop-filter:blur(4px);
-}
-.detail-backdrop.open{display:flex;align-items:center;justify-content:center;padding:1.5rem}
-.detail-modal{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
-  max-width:700px;width:100%;max-height:88vh;overflow-y:auto;
-  box-shadow:0 20px 60px rgba(0,0,0,.7);position:relative;
-  animation:slideUp .28s ease;
-}
-@keyframes slideUp{from{transform:translateY(28px);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-header{
-  background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(167,139,250,.12));
-  border-bottom:1px solid var(--border);padding:1.3rem 1.5rem;
-  display:flex;align-items:center;gap:.8rem;
-}
-.modal-header h2{font-size:1.05rem;font-weight:800}
-.modal-close{
-  margin-left:auto;background:transparent;border:none;color:var(--text-muted);
-  font-size:1.3rem;cursor:pointer;padding:.2rem .5rem;border-radius:6px;transition:color .15s;
-}
-.modal-close:hover{color:var(--text)}
-.modal-body{padding:1.4rem 1.5rem}
-.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.modal-field{background:var(--bg-dark);border-radius:9px;padding:.8rem 1rem}
-.modal-field .mf-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;margin-bottom:.25rem}
-.modal-field .mf-val{font-size:.9rem;font-weight:600}
-.modal-field.full{grid-column:1/-1}
-.narrative-box{
-  background:var(--bg-dark);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;
-  padding:1rem 1.2rem;font-size:.85rem;color:var(--text-muted);font-style:italic;line-height:1.65;margin-top:1rem;
-}
-.timeline{position:relative;padding-left:2rem;margin-top:1rem}
-.timeline::before{content:'';position:absolute;left:.7rem;top:4px;bottom:4px;width:2px;background:var(--border)}
-.tl-item{position:relative;margin-bottom:1rem}
-.tl-dot{
-  position:absolute;left:-1.6rem;top:3px;width:12px;height:12px;border-radius:50%;
-  background:var(--accent);border:2px solid var(--bg-card);box-shadow:0 0 0 2px var(--accent);
-}
-.tl-dot.orange{background:var(--accent3);box-shadow:0 0 0 2px var(--accent3)}
-.tl-dot.red{background:var(--accent4);box-shadow:0 0 0 2px var(--accent4)}
-.tl-title{font-size:.82rem;font-weight:700;color:var(--text)}
-.tl-sub{font-size:.75rem;color:var(--text-muted)}
+/* ── Drugs ── */
+.drug-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.drug{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;cursor:pointer;transition:all .2s;text-align:left;font:inherit;color:inherit}
+.drug:hover{border-color:var(--border-2);box-shadow:var(--shadow)}
+.drug.on{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,113,227,.15)}
+.drug .d-class{font-size:12px;color:var(--muted-2);margin-top:2px}
+.drug .d-name{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.drug .d-stats{display:flex;gap:16px;margin-top:16px;font-size:12px;color:var(--muted-2)}
+.drug .d-stats b{display:block;font-size:18px;color:var(--ink);font-weight:600}
+.drug-detail{margin-top:20px;background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);padding:32px;display:none}
+.drug-detail.show{display:block;animation:fade .3s ease}
+.dd-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:36px}
+.dl{display:grid;grid-template-columns:150px 1fr;gap:10px 16px;font-size:14px}
+.dl dt{color:var(--muted-2)}
+.dl dd{color:var(--ink)}
+.tag-list{display:flex;gap:6px;flex-wrap:wrap}
+.callout{border-radius:var(--r-md);padding:14px 16px;font-size:14px;display:flex;gap:12px;align-items:flex-start}
+.callout.info{background:var(--primary-soft);color:#0B3D75}
+.callout.warn{background:var(--amber-soft);color:#7A2E0E}
+.callout.danger{background:var(--red-soft);color:#7A271A}
+.callout.ok{background:var(--green-soft);color:#054F31}
 
-/* ─── CAUSALITY ASSESSOR ─── */
-.caus-panel{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1.5rem;margin-bottom:1.5rem;
-}
-.caus-panel h3{font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:1.2rem}
-.who-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.85rem}
-.who-q{background:var(--bg-dark);border-radius:9px;padding:1rem}
-.who-q label{display:block;font-size:.8rem;font-weight:600;margin-bottom:.6rem;color:var(--text)}
-.who-q .opts{display:flex;gap:.5rem;flex-wrap:wrap}
-.who-q .opt{
-  padding:.3rem .75rem;border-radius:7px;font-size:.77rem;font-weight:600;
-  cursor:pointer;border:1px solid var(--border);color:var(--text-muted);
-  background:var(--bg-card);transition:all .18s;
-}
-.who-q .opt.sel{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.12)}
-.caus-result{
-  margin-top:1.2rem;background:linear-gradient(135deg,rgba(79,142,247,.12),rgba(167,139,250,.08));
-  border:1px solid rgba(79,142,247,.25);border-radius:10px;padding:1rem 1.2rem;
-  display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
-}
-.caus-level{font-size:1.5rem;font-weight:900}
-.caus-desc{font-size:.82rem;color:var(--text-muted);flex:1}
-.caus-score{
-  background:var(--bg-dark);border-radius:8px;padding:.4rem .9rem;
-  font-size:.82rem;font-weight:700;
-}
+/* ── Causality tools ── */
+.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.q{padding:16px 0;border-bottom:1px solid #F0F0F3}
+.q:last-child{border-bottom:0}
+.q-text{font-size:14.5px;font-weight:500;margin-bottom:10px;display:flex;gap:10px}
+.q-num{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--surface);font-size:12px;display:grid;place-items:center;color:var(--muted-2);font-weight:600}
+.opts{display:flex;gap:6px;flex-wrap:wrap;padding-left:32px}
+.opt{height:32px;padding:0 14px;border-radius:var(--r-full);border:1px solid var(--border-2);background:#fff;font-size:13px;cursor:pointer;color:var(--ink-2)}
+.opt:hover{border-color:var(--primary)}
+.opt.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.opt .pts{opacity:.6;margin-left:4px;font-size:11px}
+.result{margin-top:18px;border-radius:var(--r-lg);padding:20px;background:var(--surface);display:flex;gap:18px;align-items:center}
+.result .r-cat{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.result .r-score{font-size:13px;color:var(--muted-2)}
+.gauge{width:76px;height:76px;flex-shrink:0}
+.prefill{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 
-/* ─── FIELD GUIDE TABLE ─── */
-.fg-table{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  overflow:hidden;
+/* ── Reference ── */
+.ref-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.concept{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
+.concept h4{margin-bottom:6px}
+.concept p{font-size:13.5px;color:var(--muted-2)}
+details.faq{border-bottom:1px solid var(--border);padding:18px 0}
+details.faq summary{cursor:pointer;font-weight:500;font-size:16px;list-style:none;display:flex;justify-content:space-between;gap:16px}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"+";font-size:22px;line-height:1;color:var(--muted);transition:transform .2s}
+details.faq[open] summary::after{transform:rotate(45deg)}
+details.faq p{margin-top:10px;color:var(--muted-2);font-size:14.5px;max-width:860px}
+
+/* ── Report ── */
+.report{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);padding:48px;max-width:1000px;margin:0 auto}
+.report h3{margin:34px 0 12px;font-size:17px}
+.report .r-head{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid var(--border);padding-bottom:22px;flex-wrap:wrap}
+.report table{font-size:13px}
+.report td,.report th{white-space:normal}
+.report p{font-size:14.5px;color:var(--ink-2)}
+.report ul{padding-left:20px;font-size:14.5px;color:var(--ink-2)}
+.report li{margin:4px 0}
+
+/* ── Modal ── */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.36);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.backdrop.open{display:flex;animation:fade .2s ease}
+.modal{background:#fff;border-radius:var(--r-xl);width:100%;max-width:980px;box-shadow:var(--shadow-lg);animation:rise .28s cubic-bezier(.2,.8,.2,1)}
+.m-head{padding:26px 30px 20px;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:flex-start;position:sticky;top:0;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:var(--r-xl) var(--r-xl) 0 0;z-index:2}
+.m-head h2{font-size:26px;letter-spacing:-.02em}
+.m-close{margin-left:auto;width:36px;height:36px;border-radius:50%;border:0;background:var(--surface);cursor:pointer;display:grid;place-items:center;flex-shrink:0}
+.m-close:hover{background:#E8E8ED}
+.m-body{padding:26px 30px 30px}
+.m-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.fact{background:var(--surface);border-radius:12px;padding:14px 16px}
+.fact .f-l{font-size:12px;color:var(--muted-2)}
+.fact .f-v{font-size:15px;font-weight:600;margin-top:2px}
+.m-sec{margin-top:28px}
+.m-sec h4{font-size:13px;color:var(--muted-2);font-weight:600;margin-bottom:12px;text-transform:none;letter-spacing:0}
+.narr{font-size:15.5px;line-height:1.7;color:var(--ink-2);background:#FAFAFC;border-left:3px solid var(--primary);padding:16px 20px;border-radius:0 12px 12px 0}
+.tl{position:relative;padding:26px 6px 6px}
+.tl-line{position:absolute;left:6px;right:6px;top:40px;height:4px;background:var(--surface);border-radius:2px}
+.tl-fill{position:absolute;left:6px;top:40px;height:4px;background:linear-gradient(90deg,var(--primary),#5AA2F5);border-radius:2px}
+.tl-pts{position:relative;display:flex;justify-content:space-between}
+.tl-pt{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px;text-align:center}
+.tl-pt .o{width:18px;height:18px;border-radius:50%;background:#fff;border:4px solid var(--primary)}
+.tl-pt .o.red{border-color:var(--red)} .tl-pt .o.gray{border-color:var(--border-2)} .tl-pt .o.green{border-color:var(--green)}
+.tl-pt b{font-size:13px}
+.tl-pt span{font-size:12px;color:var(--muted-2)}
+.crit{width:100%;font-size:13.5px}
+.crit td{padding:10px 12px;border-bottom:1px solid #F0F0F3;white-space:normal}
+.crit td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.crit tr.total td{border-bottom:0;font-weight:700;background:var(--surface)}
+.crit tr.total td:first-child{border-radius:10px 0 0 10px}
+.crit tr.total td:last-child{border-radius:0 10px 10px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.checks{display:grid;gap:8px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check .ci{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-size:12px;font-weight:700;margin-top:1px}
+.ci.y{background:var(--green-soft);color:var(--green)} .ci.n{background:var(--gray-soft);color:var(--muted)} .ci.w{background:var(--amber-soft);color:var(--amber)} .ci.x{background:var(--red-soft);color:var(--red)}
+.m-foot{display:flex;justify-content:space-between;align-items:center;padding:18px 30px;border-top:1px solid var(--border);background:#FAFAFC;border-radius:0 0 var(--r-xl) var(--r-xl)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:var(--r-full);font-size:14px;opacity:0;pointer-events:none;transition:all .3s;z-index:200;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Footer ── */
+footer{background:var(--surface);border-top:1px solid var(--border);padding:44px 0;font-size:12.5px;color:var(--muted-2)}
+.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px}
+footer h5{font-size:12.5px;color:var(--ink);margin-bottom:10px;font-weight:600}
+footer ul{list-style:none;display:grid;gap:6px}
+footer a{color:var(--muted-2)}
+.foot-bottom{border-top:1px solid var(--border-2);margin-top:30px;padding-top:18px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.99)}to{opacity:1;transform:none}}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ── Responsive ── */
+@media (max-width:1080px){
+  .nav-links{gap:16px}
+  .drug-grid,.ref-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-grid{grid-template-columns:1fr 1fr}
+  .card.span2{grid-column:1/-1}
 }
-.fg-table table{min-width:0}
-.fg-table thead th{background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(167,139,250,.1))}
-
-/* ─── PROGRESS BARS ─── */
-.prog-row{margin-bottom:.7rem}
-.prog-label{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem;color:var(--text-muted)}
-.prog-track{background:var(--bg-dark);border-radius:4px;height:7px;overflow:hidden}
-.prog-fill{height:100%;border-radius:4px;transition:width .6s ease}
-
-/* ─── DRUG PROFILE GRID ─── */
-.drug-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem}
-.drug-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1.2rem;cursor:pointer;transition:all .2s;
+@media (max-width:900px){
+  .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:#fff;flex-direction:column;padding:12px 24px 20px;gap:4px;border-bottom:1px solid var(--border)}
+  .nav-links.open{display:flex}
+  .nav-links a{padding:10px 0;font-size:15px}
+  .menu-btn{display:block;margin-left:auto}
+  .nav-actions .btn-label{display:none}
+  .hero-grid,.tool-grid,.dd-grid,.two{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .insights{grid-template-columns:1fr}
+  .m-grid{grid-template-columns:repeat(2,1fr)}
+  .foot-grid{grid-template-columns:1fr}
+  section.block{padding:64px 0}
+  .report{padding:28px 20px}
 }
-.drug-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
-.drug-card .drug-name{font-weight:800;font-size:1rem;margin-bottom:.4rem}
-.drug-card .drug-meta{font-size:.75rem;color:var(--text-muted);margin-bottom:.6rem}
-.drug-card .drug-stat{display:flex;justify-content:space-between;font-size:.78rem;padding:.25rem 0;border-top:1px solid var(--border)}
-
-/* ─── TOAST ─── */
-.toast-wrap{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem}
-.toast{
-  background:var(--bg-card2);border:1px solid var(--border);border-radius:9px;
-  padding:.75rem 1.2rem;font-size:.82rem;font-weight:500;min-width:220px;
-  box-shadow:var(--shadow);display:flex;align-items:center;gap:.6rem;
-  animation:slideIn .3s ease;
+@media (max-width:620px){
+  .chart-grid,.drug-grid,.ref-grid{grid-template-columns:1fr}
+  .tl-pt{width:70px}
+  .bars .bar-row{grid-template-columns:110px 1fr 34px}
+  .m-head,.m-body,.m-foot{padding-left:18px;padding-right:18px}
 }
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.toast.success{border-left:3px solid var(--accent2)}
-.toast.info{border-left:3px solid var(--accent)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 
-/* ─── PAGINATION ─── */
-.pagination{display:flex;gap:.4rem;justify-content:flex-end;margin-top:.9rem;flex-wrap:wrap}
-.page-btn{
-  width:34px;height:34px;border-radius:7px;border:1px solid var(--border);
-  background:var(--bg-card);color:var(--text-muted);cursor:pointer;
-  font-size:.8rem;font-weight:600;transition:all .18s;display:flex;align-items:center;justify-content:center;
-}
-.page-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
-.page-btn:hover:not(.active){border-color:var(--accent);color:var(--accent)}
-
-/* ─── FOOTER ─── */
-footer{
-  background:var(--bg-card);border-top:1px solid var(--border);
-  text-align:center;padding:1.2rem;font-size:.75rem;color:var(--text-muted);margin-top:2rem;
-}
-footer a{color:var(--accent);text-decoration:none}
-
-/* ─── RESPONSIVE ─── */
-@media(max-width:640px){
-  .container{padding:1rem}
-  .modal-grid{grid-template-columns:1fr}
-  .header-actions{width:100%;justify-content:flex-end}
-}
-
-/* ─── PRINT / PDF ─── */
+/* ── Print: report only ── */
 @media print{
-  header,footer,.filter-bar,.tabs,.header-actions,.detail-backdrop,.toast-wrap{display:none!important}
-  body{background:#fff;color:#000}
-  .table-wrap{max-height:none;overflow:visible}
-  .stat-card,.chart-card,.caus-panel{background:#f9f9f9;border:1px solid #ddd}
+  body *{visibility:hidden}
+  #report,#report *{visibility:visible}
+  #report{position:absolute;left:0;top:0;width:100%;padding:0;background:#fff}
+  #report .sec-head,.no-print{display:none!important}
+  .report{border:0;padding:0;max-width:none}
+  .badge{border:1px solid currentColor}
+  @page{margin:16mm}
 }
-
-/* ─── GLOW PULSES ─── */
-@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(79,142,247,.3)}50%{box-shadow:0 0 20px rgba(79,142,247,.6)}}
-.glow{animation:glow 2.5s infinite}
 </style>
 </head>
 <body>
 
-<!-- ══════ HEADER ══════ -->
-<header>
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-icon glow">💊</div>
-      ADR<span>Insight</span>
+<!-- ═════════ NAV ═════════ -->
+<nav class="nav" aria-label="Main">
+  <div class="nav-inner">
+    <a href="#top" class="brand">
+      <span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M10.5 20.5l10-10a4.95 4.95 0 10-7-7l-10 10a4.95 4.95 0 107 7z"/><path d="M8.5 8.5l7 7"/></svg></span>
+      ADR Insight
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a href="#overview">Overview</a>
+      <a href="#cases">Cases</a>
+      <a href="#analytics">Analytics</a>
+      <a href="#drugs">Drugs</a>
+      <a href="#causality">Causality</a>
+      <a href="#quality">Data quality</a>
+      <a href="#reference">Reference</a>
+      <a href="#report">Report</a>
     </div>
-    <div class="header-badge">PV Task 1 · Educational Only</div>
-    <div class="header-actions">
-      <a href="https://youtu.be/CqoYIT_qoTM" target="_blank" class="btn btn-outline">▶ Tutorial</a>
-      <button class="btn btn-outline" onclick="exportCSV()">⬇ Export CSV</button>
-      <button class="btn btn-success" onclick="printReport()">🖨 Print Report</button>
-      <button class="btn btn-primary" onclick="showToast('PDF generation requires print → Save as PDF','info')">📄 PDF Export</button>
+    <div class="nav-actions">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()" title="Export CSV"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg><span class="btn-label">Export</span></button>
+      <button class="btn btn-primary btn-sm" onclick="printReport()" title="Print report"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a2 2 0 012-2h14a2 2 0 012 2v6a1 1 0 01-1 1h-2M6 14h12v7H6z"/></svg><span class="btn-label">Report</span></button>
     </div>
+    <button class="menu-btn" aria-label="Open menu" onclick="document.getElementById('navLinks').classList.toggle('open')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</nav>
+
+<!-- ═════════ HERO ═════════ -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Pharmacovigilance · Task 1 · ADR Identification</div>
+      <h1 class="display">Every adverse reaction,<br/>clearly identified.</h1>
+      <p class="lead">Eighteen synthetic case reports, reviewed end-to-end. Suspect drugs, onset timelines, regulatory seriousness, label expectedness, dechallenge and rechallenge — scored with WHO-UMC and Naranjo, with every rationale shown.</p>
+      <div class="hero-ctas">
+        <a href="#cases" class="btn btn-primary">Explore the cases</a>
+        <a href="#causality" class="btn btn-secondary">Run a causality assessment</a>
+        <a href="https://youtu.be/CqoYIT_qoTM" target="_blank" rel="noopener" class="btn btn-ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Tutorial</a>
+      </div>
+      <div class="hero-note"><span class="dot"></span>Fictional, de-identified training data. Educational use only — not for clinical care or regulatory submission.</div>
+    </div>
+    <div class="hero-card" id="heroCard"></div>
   </div>
 </header>
 
-<!-- ══════ MAIN ══════ -->
-<div class="container">
-
-  <!-- OBJECTIVE BANNER -->
-  <div style="background:linear-gradient(135deg,rgba(79,142,247,.1),rgba(167,139,250,.08));border:1px solid rgba(79,142,247,.22);border-radius:var(--radius);padding:1rem 1.4rem;margin-bottom:1.6rem;display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
-    <div style="font-size:1.5rem">🎯</div>
-    <div>
-      <div style="font-weight:700;font-size:.95rem;margin-bottom:.25rem">Objective</div>
-      <div style="font-size:.82rem;color:var(--text-muted)">Identify suspect drugs and correlate adverse event timelines using clinical intake records. Analyze 18 synthetic patient case scenarios to determine ADR causality using WHO-UMC criteria.</div>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-      <span class="badge badge-known">📋 18 Cases Loaded</span>
-      <span class="badge badge-cause">🔬 Causality Engine Active</span>
-    </div>
+<!-- ═════════ OVERVIEW ═════════ -->
+<section class="block" id="overview" style="padding-top:24px">
+  <div class="wrap">
+    <div class="kpis reveal" id="kpis"></div>
+    <div class="insights reveal" id="insights"></div>
   </div>
+</section>
 
-  <!-- STAT CARDS -->
-  <div class="stats-grid" id="statsGrid"></div>
-
-  <!-- TABS -->
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('cases',this)">📋 Case Table</div>
-    <div class="tab" onclick="switchTab('analytics',this)">📊 Analytics</div>
-    <div class="tab" onclick="switchTab('drugs',this)">💊 Drug Profiles</div>
-    <div class="tab" onclick="switchTab('causality',this)">🔬 Causality Assessor</div>
-    <div class="tab" onclick="switchTab('fieldguide',this)">📖 Field Guide</div>
-    <div class="tab" onclick="switchTab('summary',this)">📄 ADR Summary Report</div>
-  </div>
-
-  <!-- ══ TAB: CASES ══ -->
-  <div class="tab-panel active" id="tab-cases">
-    <div class="filter-bar">
-      <div class="filter-group" style="flex:2">
-        <label>🔍 Search</label>
-        <input type="text" id="searchBox" placeholder="Case ID, drug, reaction, reporter…" oninput="applyFilters()">
+<!-- ═════════ CASES ═════════ -->
+<section class="block alt" id="cases">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Case explorer</div>
+        <h2 class="title">All 18 case reports.</h2>
+        <p class="lead">Search, filter and sort every field. Open any case for its full narrative, timeline, causality working and data-quality checks.</p>
       </div>
-      <div class="filter-group">
-        <label>Suspect Drug</label>
-        <select id="filterDrug" onchange="applyFilters()"><option value="">All</option></select>
-      </div>
-      <div class="filter-group">
-        <label>Seriousness</label>
-        <select id="filterSeriousness" onchange="applyFilters()"><option value="">All</option></select>
-      </div>
-      <div class="filter-group">
-        <label>Expectedness</label>
-        <select id="filterExpect" onchange="applyFilters()"><option value="">All</option></select>
-      </div>
-      <div class="filter-group">
-        <label>Reporter</label>
-        <select id="filterReporter" onchange="applyFilters()"><option value="">All</option></select>
-      </div>
-      <div class="filter-group">
-        <label>Sort By</label>
-        <select id="sortBy" onchange="applyFilters()">
-          <option value="CaseID">Case ID</option>
-          <option value="OnsetDays">Onset Days</option>
-          <option value="Age">Age</option>
-          <option value="SuspectProduct">Drug</option>
-        </select>
-      </div>
-      <button class="btn btn-outline" onclick="clearFilters()" style="align-self:flex-end;white-space:nowrap">✕ Clear</button>
-    </div>
-    <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem" id="resultCount"></div>
-    <div class="table-wrap">
-      <table id="caseTable">
-        <thead>
-          <tr>
-            <th onclick="sortTable('CaseID')">Case ID <span class="sort-arrow">↕</span></th>
-            <th>Age/Sex</th>
-            <th onclick="sortTable('SuspectProduct')">Suspect Drug <span class="sort-arrow">↕</span></th>
-            <th>Dose / Route</th>
-            <th>Indication</th>
-            <th>Adverse Reaction</th>
-            <th onclick="sortTable('OnsetDays')">Onset (days) <span class="sort-arrow">↕</span></th>
-            <th>Expectedness</th>
-            <th>Seriousness</th>
-            <th>Dechallenge</th>
-            <th>Rechallenge</th>
-            <th>Concomitant</th>
-            <th>Causality</th>
-            <th>Reporter</th>
-            <th>Detail</th>
-          </tr>
-        </thead>
-        <tbody id="caseBody"></tbody>
-      </table>
-    </div>
-    <div class="pagination" id="pagination"></div>
-  </div>
-
-  <!-- ══ TAB: ANALYTICS ══ -->
-  <div class="tab-panel" id="tab-analytics">
-    <div class="charts-grid">
-      <div class="chart-card"><h3>Reactions by Drug</h3><canvas id="chartDrugReaction"></canvas></div>
-      <div class="chart-card"><h3>Seriousness Distribution</h3><canvas id="chartSeriousness"></canvas></div>
-      <div class="chart-card"><h3>Onset Days Distribution</h3><canvas id="chartOnset"></canvas></div>
-      <div class="chart-card"><h3>Reporter Type Breakdown</h3><canvas id="chartReporter"></canvas></div>
-      <div class="chart-card"><h3>Expectedness (Known vs Unexpected)</h3><canvas id="chartExpect"></canvas></div>
-      <div class="chart-card"><h3>Dechallenge / Rechallenge Outcomes</h3><canvas id="chartDR"></canvas></div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;flex-wrap:wrap">
-      <div class="chart-card" style="grid-column:1/-1">
-        <h3>Age vs Onset Days (all cases)</h3>
-        <canvas id="chartScatter" style="max-height:260px"></canvas>
+      <div class="seg" role="tablist" aria-label="View">
+        <button class="on" id="viewTable" onclick="setView('table')">Table</button>
+        <button id="viewCards" onclick="setView('cards')">Cards</button>
       </div>
     </div>
 
-    <div style="margin-top:1.4rem">
-      <div class="section-head">Top ADR Reactions <span class="pill">frequency</span></div>
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.5rem" id="reactionFreq"></div>
+    <div class="toolbar">
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search case ID, drug, reaction, indication, reporter…" oninput="applyFilters()" aria-label="Search cases" />
+      </label>
+      <select class="select" id="fDrug" onchange="applyFilters()" aria-label="Suspect drug"><option value="">All drugs</option></select>
+      <select class="select" id="fExp" onchange="applyFilters()" aria-label="Expectedness"><option value="">Any expectedness</option></select>
+      <select class="select" id="fRep" onchange="applyFilters()" aria-label="Reporter"><option value="">Any reporter</option></select>
+      <select class="select" id="fCaus" onchange="applyFilters()" aria-label="Causality"><option value="">Any causality</option></select>
+      <button class="btn btn-ghost" onclick="clearFilters()">Reset</button>
     </div>
-  </div>
+    <div class="chips" id="serChips"></div>
+    <div class="result-line"><span id="resultCount"></span><span>Click a row to open the full case</span></div>
 
-  <!-- ══ TAB: DRUG PROFILES ══ -->
-  <div class="tab-panel" id="tab-drugs">
-    <div class="section-head">Drug-Level Summary <span class="pill">click for details</span></div>
-    <div class="drug-grid" id="drugGrid"></div>
-    <div id="drugDetail" style="display:none">
-      <div class="chart-card">
-        <h3 id="drugDetailTitle"></h3>
-        <div id="drugDetailBody"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ TAB: CAUSALITY ASSESSOR ══ -->
-  <div class="tab-panel" id="tab-causality">
-    <div class="caus-panel">
-      <h3>🔬 WHO-UMC Causality Assessment Tool</h3>
-      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.2rem">Answer the clinical questions below to generate a WHO-UMC causality category for a case. All fields contribute to the final score.</p>
-
-      <div class="who-grid">
-        <div class="who-q">
-          <label>1. Time relationship between drug and event?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'time',3)">Yes, plausible ✔</div>
-            <div class="opt" onclick="whoSelect(this,'time',1)">Possible ⚠</div>
-            <div class="opt" onclick="whoSelect(this,'time',0)">No / Unknown ✘</div>
-          </div>
-        </div>
-        <div class="who-q">
-          <label>2. Reaction known for this drug?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'known',2)">Yes (labelled) ✔</div>
-            <div class="opt" onclick="whoSelect(this,'known',1)">Possible (literature) ⚠</div>
-            <div class="opt" onclick="whoSelect(this,'known',0)">No / Unknown ✘</div>
-          </div>
-        </div>
-        <div class="who-q">
-          <label>3. Improvement on drug withdrawal (Dechallenge)?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'dech',2)">Yes ✔</div>
-            <div class="opt" onclick="whoSelect(this,'dech',1)">Partial ⚠</div>
-            <div class="opt" onclick="whoSelect(this,'dech',-1)">No / N/A</div>
-            <div class="opt" onclick="whoSelect(this,'dech',0)">Unknown</div>
-          </div>
-        </div>
-        <div class="who-q">
-          <label>4. Recurrence on re-exposure (Rechallenge)?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'rech',3)">Yes ✔</div>
-            <div class="opt" onclick="whoSelect(this,'rech',0)">No / Not done</div>
-            <div class="opt" onclick="whoSelect(this,'rech',-1)">N/A</div>
-          </div>
-        </div>
-        <div class="who-q">
-          <label>5. Alternative causes reasonably excluded?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'alt',2)">Yes ✔</div>
-            <div class="opt" onclick="whoSelect(this,'alt',0)">No / Unlikely</div>
-            <div class="opt" onclick="whoSelect(this,'alt',1)">Partly ⚠</div>
-          </div>
-        </div>
-        <div class="who-q">
-          <label>6. Reaction confirmed by objective evidence?</label>
-          <div class="opts">
-            <div class="opt" onclick="whoSelect(this,'obj',1)">Yes ✔</div>
-            <div class="opt" onclick="whoSelect(this,'obj',0)">No / Unknown</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="caus-result" id="causResult" style="display:none">
-        <div>
-          <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:.2rem">WHO-UMC Category</div>
-          <div class="caus-level" id="causLevel">—</div>
-        </div>
-        <div class="caus-desc" id="causDesc">—</div>
-        <div class="caus-score" id="causScore"></div>
-      </div>
-      <button class="btn btn-primary" style="margin-top:1rem" onclick="calcCausality()">Calculate Causality →</button>
-      <button class="btn btn-outline" style="margin-top:1rem;margin-left:.5rem" onclick="resetCausality()">Reset</button>
-    </div>
-
-    <div class="caus-panel">
-      <h3>📊 Pre-computed Causality for All 18 Cases</h3>
-      <div class="table-wrap" style="max-height:380px">
+    <div id="tableView" class="table-card">
+      <div class="table-scroll">
         <table>
-          <thead>
-            <tr><th>Case ID</th><th>Drug</th><th>Reaction</th><th>Dechallenge</th><th>Rechallenge</th><th>Expectedness</th><th>Causality Category</th><th>Rationale</th></tr>
-          </thead>
-          <tbody id="causTable"></tbody>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
         </table>
       </div>
     </div>
+    <div id="cardView" class="case-grid" style="display:none"></div>
   </div>
+</section>
 
-  <!-- ══ TAB: FIELD GUIDE ══ -->
-  <div class="tab-panel" id="tab-fieldguide">
-    <div class="section-head">📖 Field Guide — Minimum Case Validity Criteria</div>
-    <div class="fg-table">
-      <table>
-        <thead><tr><th>Field</th><th>Required for Valid Case</th><th>Student Entry / Notes</th><th>Source Evidence</th></tr></thead>
-        <tbody id="fgBody"></tbody>
-      </table>
+<!-- ═════════ ANALYTICS ═════════ -->
+<section class="block" id="analytics">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Analytics</div>
+        <h2 class="title">Patterns across the dataset.</h2>
+        <p class="lead">Distributions describe this training set only. Reporting frequency is not evidence of causation.</p>
+      </div>
     </div>
-    <div style="margin-top:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1.3rem">
-      <div class="section-head">ℹ️ Key Pharmacovigilance Concepts</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-top:.5rem" id="pvConcepts"></div>
+    <div class="chart-grid reveal">
+      <div class="card span2">
+        <div class="card-head"><h3>Onset timeline by case</h3><span class="small muted">days from first dose</span></div>
+        <p class="card-desc">Each bar is one case, coloured by WHO-UMC causality category.</p>
+        <div class="chart-box tall"><canvas id="cOnsetCase"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Regulatory seriousness</h3></div>
+        <p class="card-desc">ICH E2A seriousness criteria.</p>
+        <div class="chart-box tall"><canvas id="cSer"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Onset windows</h3></div>
+        <p class="card-desc">Time-to-onset in one-week bands.</p>
+        <div class="chart-box"><canvas id="cOnset"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Reporter type</h3></div>
+        <p class="card-desc">Primary source qualification.</p>
+        <div class="chart-box"><canvas id="cRep"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Outcome at follow-up</h3></div>
+        <p class="card-desc">Taken from each case narrative.</p>
+        <div class="chart-box"><canvas id="cOut"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Dechallenge & rechallenge</h3></div>
+        <p class="card-desc">Response to withdrawal and re-exposure.</p>
+        <div class="chart-box"><canvas id="cDR"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Age vs onset</h3></div>
+        <p class="card-desc">Circles: known patient sex; squares: unknown.</p>
+        <div class="chart-box"><canvas id="cScatter"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Causality categories</h3></div>
+        <p class="card-desc">WHO-UMC vs Naranjo results.</p>
+        <div class="chart-box"><canvas id="cCaus"></canvas></div>
+      </div>
+      <div class="card span2">
+        <div class="card-head"><h3>Drug × seriousness heatmap</h3></div>
+        <p class="card-desc">Case counts per suspect product and seriousness classification.</p>
+        <div style="overflow-x:auto"><table class="heat" id="heat"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Patient demographics</h3></div>
+        <p class="card-desc">Age bands and sex as reported.</p>
+        <div class="bars" id="demo"></div>
+      </div>
     </div>
   </div>
+</section>
 
-  <!-- ══ TAB: ADR SUMMARY REPORT ══ -->
-  <div class="tab-panel" id="tab-summary">
-    <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-bottom:1rem">
-      <button class="btn btn-success" onclick="printReport()">🖨 Print / Save PDF</button>
-      <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
+<!-- ═════════ DRUGS ═════════ -->
+<section class="block alt" id="drugs">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Drug profiles</div>
+        <h2 class="title">Eight suspect products.</h2>
+        <p class="lead">Reference pharmacology alongside how each product behaves in this dataset. Select a drug to see its full profile.</p>
+      </div>
     </div>
-    <div id="summaryReport"></div>
+    <div class="drug-grid" id="drugGrid"></div>
+    <div class="drug-detail" id="drugDetail"></div>
   </div>
+</section>
 
-</div><!-- /container -->
-
-<!-- ══ DETAIL MODAL ══ -->
-<div class="detail-backdrop" id="detailBackdrop" onclick="closeDetail(event)">
-  <div class="detail-modal">
-    <div class="modal-header">
-      <span style="font-size:1.3rem">💊</span>
-      <h2 id="modalTitle">Case Detail</h2>
-      <button class="modal-close" onclick="closeModalBtn()">✕</button>
+<!-- ═════════ CAUSALITY ═════════ -->
+<section class="block" id="causality">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Causality assessment</div>
+        <h2 class="title">Two scales, side by side.</h2>
+        <p class="lead">Answer the questions yourself, or load any case to pre-fill the answers from its record. Every point is explained.</p>
+      </div>
     </div>
-    <div class="modal-body" id="modalBody"></div>
+    <div class="prefill" style="margin-bottom:20px">
+      <span class="small muted">Pre-fill from case</span>
+      <select class="select" id="prefillSel" onchange="prefill(this.value)"><option value="">Choose a case…</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="resetTools()">Clear answers</button>
+    </div>
+    <div class="tool-grid">
+      <div class="card">
+        <div class="card-head"><h3>WHO-UMC scoring</h3><span class="badge b-blue nodot">Heuristic</span></div>
+        <p class="card-desc">A points-based approximation of the WHO-UMC system used across this dashboard.</p>
+        <div id="whoQs"></div>
+        <div class="result" id="whoRes"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Naranjo algorithm</h3><span class="badge b-violet nodot">10 questions</span></div>
+        <p class="card-desc">The standard Naranjo ADR probability scale (−4 to +13).</p>
+        <div id="narQs"></div>
+        <div class="result" id="narRes"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-head"><h3>Pre-computed results for all cases</h3><span class="small muted">click a row for details</span></div>
+      <p class="card-desc">WHO-UMC heuristic and Naranjo score with the reasoning behind each.</p>
+      <div class="table-scroll" style="max-height:520px;border:1px solid var(--border);border-radius:12px">
+        <table><thead><tr><th>Case</th><th>Drug → Reaction</th><th>Onset</th><th>Dechallenge</th><th>Rechallenge</th><th>WHO-UMC</th><th>Naranjo</th><th>Rationale</th></tr></thead><tbody id="causBody"></tbody></table>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-<!-- ══ TOAST ══ -->
-<div class="toast-wrap" id="toastWrap"></div>
-
-<!-- ══════ SCRIPT ══════ -->
-<script>
-/* ═══════ DATA ═══════ */
-const RAW = [
-  {CaseID:"SYN-PV-001",Age:30,Sex:"Male",SuspectProduct:"Amoxicillin",Dose:"20 mg once daily",Route:"Oral",Indication:"Anxiety",Reaction:"Rash",OnsetDays:17,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Negative",Rechallenge:"Positive",ConcomitantMedicines:"None reported",Reporter:"Consumer",Narrative:"A 30-year-old male received Amoxicillin orally for a documented indication. Rash was reported 17 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up."},
-  {CaseID:"SYN-PV-002",Age:36,Sex:"Unknown",SuspectProduct:"Atorvastatin",Dose:"5 mg once daily",Route:"Oral",Indication:"Anxiety",Reaction:"Myalgia",OnsetDays:1,ExpectednessReference:"Known",Seriousness:"Not serious",Dechallenge:"Unknown",Rechallenge:"Negative",ConcomitantMedicines:"None reported",Reporter:"Pharmacist",Narrative:"A 36-year-old patient received Atorvastatin orally. Myalgia was reported 1 day(s) after treatment began. The patient recovered."},
-  {CaseID:"SYN-PV-003",Age:34,Sex:"Female",SuspectProduct:"Metformin",Dose:"5 mg once daily",Route:"Oral",Indication:"Anxiety",Reaction:"Nausea",OnsetDays:13,ExpectednessReference:"Known",Seriousness:"Hospitalisation",Dechallenge:"Negative",Rechallenge:"Negative",ConcomitantMedicines:"Vitamin D",Reporter:"Consumer",Narrative:"A 34-year-old female received Metformin orally. Nausea was reported 13 days after treatment began. Patient was hospitalised and recovered."},
-  {CaseID:"SYN-PV-004",Age:61,Sex:"Male",SuspectProduct:"Amlodipine",Dose:"500 mg twice daily",Route:"Oral",Indication:"Anxiety",Reaction:"Peripheral oedema",OnsetDays:21,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Positive",Rechallenge:"Negative",ConcomitantMedicines:"None reported",Reporter:"Pharmacist",Narrative:"A 61-year-old male received Amlodipine orally. Peripheral oedema was reported 21 days after treatment began. Patient recovered."},
-  {CaseID:"SYN-PV-005",Age:33,Sex:"Unknown",SuspectProduct:"Ciprofloxacin",Dose:"500 mg twice daily",Route:"Oral",Indication:"Infection",Reaction:"Tendon pain",OnsetDays:15,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Unknown",Rechallenge:"Not done",ConcomitantMedicines:"None reported",Reporter:"Pharmacist",Narrative:"A 33-year-old patient received Ciprofloxacin orally. Tendon pain was reported 15 days after treatment began. Patient was not recovered at follow-up."},
-  {CaseID:"SYN-PV-006",Age:31,Sex:"Unknown",SuspectProduct:"Sertraline",Dose:"20 mg once daily",Route:"Oral",Indication:"Hypertension",Reaction:"Dizziness",OnsetDays:3,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Positive",Rechallenge:"Not done",ConcomitantMedicines:"Paracetamol",Reporter:"Physician",Narrative:"A 31-year-old patient received Sertraline orally. Dizziness was reported 3 days after treatment began. Patient was recovering."},
-  {CaseID:"SYN-PV-007",Age:63,Sex:"Male",SuspectProduct:"Omeprazole",Dose:"500 mg twice daily",Route:"Oral",Indication:"Hypertension",Reaction:"Headache",OnsetDays:16,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Negative",Rechallenge:"Negative",ConcomitantMedicines:"Paracetamol",Reporter:"Consumer",Narrative:"A 63-year-old male received Omeprazole orally. Headache was reported 16 days after treatment began. Patient recovered."},
-  {CaseID:"SYN-PV-008",Age:36,Sex:"Male",SuspectProduct:"Losartan",Dose:"5 mg once daily",Route:"Oral",Indication:"Infection",Reaction:"Fatigue",OnsetDays:2,ExpectednessReference:"Unexpected",Seriousness:"Not serious",Dechallenge:"Negative",Rechallenge:"Not done",ConcomitantMedicines:"Paracetamol",Reporter:"Pharmacist",Narrative:"A 36-year-old male received Losartan orally. Fatigue was reported 2 days after treatment began. This was an unexpected reaction. Patient was recovering."},
-  {CaseID:"SYN-PV-009",Age:78,Sex:"Unknown",SuspectProduct:"Amoxicillin",Dose:"5 mg once daily",Route:"Oral",Indication:"Anxiety",Reaction:"Rash",OnsetDays:7,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Positive",Rechallenge:"Not done",ConcomitantMedicines:"Vitamin D",Reporter:"Physician",Narrative:"A 78-year-old patient received Amoxicillin orally. Rash was reported 7 days after treatment began. Patient was recovering."},
-  {CaseID:"SYN-PV-010",Age:57,Sex:"Female",SuspectProduct:"Atorvastatin",Dose:"5 mg once daily",Route:"Oral",Indication:"Infection",Reaction:"Myalgia",OnsetDays:21,ExpectednessReference:"Known",Seriousness:"Hospitalisation",Dechallenge:"Unknown",Rechallenge:"Negative",ConcomitantMedicines:"Paracetamol",Reporter:"Pharmacist",Narrative:"A 57-year-old female received Atorvastatin orally. Myalgia was reported 21 days after treatment began. Patient was hospitalised and recovered."},
-  {CaseID:"SYN-PV-011",Age:23,Sex:"Unknown",SuspectProduct:"Metformin",Dose:"5 mg once daily",Route:"Oral",Indication:"Hypertension",Reaction:"Nausea",OnsetDays:19,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Unknown",Rechallenge:"Positive",ConcomitantMedicines:"None reported",Reporter:"Consumer",Narrative:"A 23-year-old patient received Metformin orally. Nausea was reported 19 days after treatment began. Patient was recovering."},
-  {CaseID:"SYN-PV-012",Age:24,Sex:"Female",SuspectProduct:"Amlodipine",Dose:"5 mg once daily",Route:"Oral",Indication:"Hypertension",Reaction:"Peripheral oedema",OnsetDays:4,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Unknown",Rechallenge:"Positive",ConcomitantMedicines:"None reported",Reporter:"Pharmacist",Narrative:"A 24-year-old female received Amlodipine orally. Peripheral oedema was reported 4 days after treatment began. Patient was not recovered at follow-up."},
-  {CaseID:"SYN-PV-013",Age:75,Sex:"Female",SuspectProduct:"Ciprofloxacin",Dose:"500 mg twice daily",Route:"Oral",Indication:"Diabetes",Reaction:"Tendon pain",OnsetDays:5,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Negative",Rechallenge:"Positive",ConcomitantMedicines:"Vitamin D",Reporter:"Physician",Narrative:"A 75-year-old female received Ciprofloxacin orally. Tendon pain was reported 5 days after treatment began. Patient was not recovered at follow-up."},
-  {CaseID:"SYN-PV-014",Age:75,Sex:"Female",SuspectProduct:"Sertraline",Dose:"5 mg once daily",Route:"Oral",Indication:"Diabetes",Reaction:"Dizziness",OnsetDays:9,ExpectednessReference:"Known",Seriousness:"Hospitalisation",Dechallenge:"Negative",Rechallenge:"Negative",ConcomitantMedicines:"Paracetamol",Reporter:"Physician",Narrative:"A 75-year-old female received Sertraline orally. Dizziness was reported 9 days after treatment began. Patient was hospitalised."},
-  {CaseID:"SYN-PV-015",Age:33,Sex:"Male",SuspectProduct:"Omeprazole",Dose:"20 mg once daily",Route:"Oral",Indication:"Hypertension",Reaction:"Headache",OnsetDays:16,ExpectednessReference:"Known",Seriousness:"Hospitalisation",Dechallenge:"Unknown",Rechallenge:"Positive",ConcomitantMedicines:"None reported",Reporter:"Physician",Narrative:"A 33-year-old male received Omeprazole orally. Headache was reported 16 days after treatment began. Patient recovered."},
-  {CaseID:"SYN-PV-016",Age:66,Sex:"Unknown",SuspectProduct:"Losartan",Dose:"20 mg once daily",Route:"Oral",Indication:"Diabetes",Reaction:"Fatigue",OnsetDays:10,ExpectednessReference:"Unexpected",Seriousness:"Not serious",Dechallenge:"Positive",Rechallenge:"Negative",ConcomitantMedicines:"None reported",Reporter:"Physician",Narrative:"A 66-year-old patient received Losartan orally. Fatigue was reported 10 days after treatment began. This was an unexpected reaction. Patient was not recovered at follow-up."},
-  {CaseID:"SYN-PV-017",Age:57,Sex:"Unknown",SuspectProduct:"Amoxicillin",Dose:"5 mg once daily",Route:"Oral",Indication:"Hypertension",Reaction:"Rash",OnsetDays:21,ExpectednessReference:"Known",Seriousness:"Medically important",Dechallenge:"Unknown",Rechallenge:"Positive",ConcomitantMedicines:"Vitamin D",Reporter:"Physician",Narrative:"A 57-year-old patient received Amoxicillin orally. Rash was reported 21 days after treatment began. Patient was recovering."},
-  {CaseID:"SYN-PV-018",Age:56,Sex:"Female",SuspectProduct:"Atorvastatin",Dose:"500 mg twice daily",Route:"Oral",Indication:"Anxiety",Reaction:"Myalgia",OnsetDays:17,ExpectednessReference:"Known",Seriousness:"Hospitalisation",Dechallenge:"Unknown",Rechallenge:"Positive",ConcomitantMedicines:"None reported",Reporter:"Physician",Narrative:"A 56-year-old female received Atorvastatin orally. Myalgia was reported 17 days after treatment began. Patient was hospitalised and not recovered at follow-up."}
-];
-
-const FIELD_GUIDE = [
-  {Field:"Identifiable patient",Required:"Yes",Notes:"Age, sex, or case identifier must be present",Source:"WHO-UMC minimum dataset"},
-  {Field:"Identifiable reporter",Required:"Yes",Notes:"Reporter type (consumer/pharmacist/physician) is sufficient",Source:"ICH E2B(R3)"},
-  {Field:"Suspect product",Required:"Yes",Notes:"Drug name, dose, and route should be captured",Source:"ICH E2B(R3)"},
-  {Field:"Adverse event",Required:"Yes",Notes:"At least one reaction/symptom must be described",Source:"ICH E2B(R3)"},
-  {Field:"Chronology (onset)",Required:"No",Notes:"Onset-days strengthens causality; record as unknown if missing",Source:"WHO-UMC causality scale"},
-  {Field:"Seriousness",Required:"No",Notes:"Distinguish regulatory seriousness from clinical severity",Source:"EU GVP Module VI"},
-  {Field:"Outcome",Required:"No",Notes:"Recovered / Recovering / Not recovered / Unknown",Source:"ICH E2B(R3)"},
-];
-
-const PV_CONCEPTS = [
-  {title:"🔵 Adverse Drug Reaction (ADR)",body:"A harmful, unintended response to a medicine at normal doses. Differs from adverse events by implying causality."},
-  {title:"⚠️ Suspect Drug",body:"The medication believed to have caused the ADR. Determined by temporal relationship, dechallenge, and rechallenge."},
-  {title:"🟢 Dechallenge",body:"Withdrawal of the suspect drug. Positive dechallenge (improvement on withdrawal) supports causality."},
-  {title:"🔴 Rechallenge",body:"Re-administration of the suspect drug. Positive rechallenge (recurrence) strongly supports causality."},
-  {title:"📋 Seriousness (Regulatory)",body:"An event is serious if it is fatal, life-threatening, requires hospitalisation, causes disability, or is medically important."},
-  {title:"📌 Expectedness",body:"Known = listed in the Summary of Product Characteristics (SmPC). Unexpected = not in labelling."},
-  {title:"🧪 WHO-UMC Scale",body:"Certain → Probable → Possible → Unlikely → Conditional → Unassessable. Based on temporal, clinical, and pharmacological criteria."},
-  {title:"👥 Co-medications",body:"Concomitant medicines can be alternative causes. Must be documented and assessed for drug-drug interactions."},
-];
-
-/* ═══════ STATE ═══════ */
-let filtered = [...RAW];
-let currentPage = 1;
-const PAGE_SIZE = 10;
-let sortCol = 'CaseID', sortAsc = true;
-let whoScores = {time:null,known:null,dech:null,rech:null,alt:null,obj:null};
-let chartsBuilt = false;
-
-/* ═══════ CAUSALITY ENGINE ═══════ */
-function computeCausality(row){
-  // Simplified WHO-UMC heuristic
-  let score = 0;
-  // Temporal
-  if(row.OnsetDays <= 7) score += 3;
-  else if(row.OnsetDays <= 21) score += 2;
-  else score += 1;
-  // Known
-  if(row.ExpectednessReference === 'Known') score += 2;
-  // Dechallenge
-  if(row.Dechallenge === 'Positive') score += 2;
-  else if(row.Dechallenge === 'Unknown') score += 0;
-  else score -= 1;
-  // Rechallenge
-  if(row.Rechallenge === 'Positive') score += 3;
-  else if(row.Rechallenge === 'Negative') score -= 1;
-  // Alternative (assume partly excluded when no concomitant)
-  if(row.ConcomitantMedicines === 'None reported') score += 1;
-
-  if(score >= 9) return {cat:'Certain',color:'#38d9a9'};
-  if(score >= 7) return {cat:'Probable',color:'#4f8ef7'};
-  if(score >= 4) return {cat:'Possible',color:'#f8b400'};
-  if(score >= 2) return {cat:'Unlikely',color:'#e95c7b'};
-  return {cat:'Conditional/Unassessable',color:'#8b949e'};
-}
-
-/* ═══════ BADGES ═══════ */
-function seriousnessBadge(s){
-  if(s==='Hospitalisation') return `<span class="badge badge-hosp">🏥 ${s}</span>`;
-  if(s==='Medically important') return `<span class="badge badge-med">⚕️ ${s}</span>`;
-  if(s==='Not serious') return `<span class="badge badge-not-serious">✓ ${s}</span>`;
-  return `<span class="badge">${s}</span>`;
-}
-function expectBadge(e){
-  return e==='Known'?`<span class="badge badge-known">Known</span>`:`<span class="badge badge-unexpected">⚠ Unexpected</span>`;
-}
-function dcBadge(v){
-  if(v==='Positive') return `<span class="badge badge-pos">+ Positive</span>`;
-  if(v==='Negative') return `<span class="badge badge-neg">- Negative</span>`;
-  return `<span class="badge badge-unk">${v}</span>`;
-}
-function causBadge(cat,color){
-  return `<span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${cat}</span>`;
-}
-
-/* ═══════ RENDER TABLE ═══════ */
-function renderTable(){
-  const tbody = document.getElementById('caseBody');
-  const start = (currentPage-1)*PAGE_SIZE;
-  const slice = filtered.slice(start, start+PAGE_SIZE);
-  tbody.innerHTML = slice.map(r=>{
-    const c = computeCausality(r);
-    return `<tr onclick="openDetail('${r.CaseID}')" style="cursor:pointer">
-      <td><strong style="color:var(--accent)">${r.CaseID}</strong></td>
-      <td>${r.Age}y / ${r.Sex}</td>
-      <td><strong>${r.SuspectProduct}</strong></td>
-      <td style="color:var(--text-muted);font-size:.78rem">${r.Dose}<br>${r.Route}</td>
-      <td style="color:var(--text-muted)">${r.Indication}</td>
-      <td><strong>${r.Reaction}</strong></td>
-      <td style="text-align:center"><span style="font-weight:700;color:${r.OnsetDays<=7?'#38d9a9':r.OnsetDays<=14?'#f8b400':'#e95c7b'}">${r.OnsetDays}d</span></td>
-      <td>${expectBadge(r.ExpectednessReference)}</td>
-      <td>${seriousnessBadge(r.Seriousness)}</td>
-      <td>${dcBadge(r.Dechallenge)}</td>
-      <td>${dcBadge(r.Rechallenge)}</td>
-      <td style="color:var(--text-muted);font-size:.78rem">${r.ConcomitantMedicines}</td>
-      <td>${causBadge(c.cat,c.color)}</td>
-      <td style="color:var(--text-muted)">${r.Reporter}</td>
-      <td><button class="btn btn-outline" style="padding:.3rem .6rem;font-size:.72rem" onclick="event.stopPropagation();openDetail('${r.CaseID}')">View</button></td>
-    </tr>`;
-  }).join('');
-  document.getElementById('resultCount').textContent = `Showing ${start+1}–${Math.min(start+PAGE_SIZE,filtered.length)} of ${filtered.length} cases`;
-  renderPagination();
-}
-
-function renderPagination(){
-  const total = Math.ceil(filtered.length / PAGE_SIZE);
-  const p = document.getElementById('pagination');
-  let html = '';
-  for(let i=1;i<=total;i++){
-    html += `<button class="page-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
-  }
-  p.innerHTML = html;
-}
-
-function goPage(n){currentPage=n;renderTable()}
-
-/* ═══════ FILTER & SORT ═══════ */
-function populateFilters(){
-  const drugs=[...new Set(RAW.map(r=>r.SuspectProduct))].sort();
-  const serious=[...new Set(RAW.map(r=>r.Seriousness))].sort();
-  const expect=[...new Set(RAW.map(r=>r.ExpectednessReference))].sort();
-  const reporters=[...new Set(RAW.map(r=>r.Reporter))].sort();
-  ['filterDrug','filterSeriousness','filterExpect','filterReporter'].forEach((id,i)=>{
-    const el=document.getElementById(id);
-    const opts=[drugs,serious,expect,reporters][i];
-    opts.forEach(o=>el.innerHTML+=`<option>${o}</option>`);
-  });
-}
-
-function applyFilters(){
-  const q=document.getElementById('searchBox').value.toLowerCase();
-  const drug=document.getElementById('filterDrug').value;
-  const ser=document.getElementById('filterSeriousness').value;
-  const exp=document.getElementById('filterExpect').value;
-  const rep=document.getElementById('filterReporter').value;
-  const col=document.getElementById('sortBy').value;
-
-  filtered = RAW.filter(r=>{
-    const text=(r.CaseID+r.SuspectProduct+r.Reaction+r.Reporter+r.Indication+r.ConcomitantMedicines).toLowerCase();
-    return (!q||text.includes(q))
-      && (!drug||r.SuspectProduct===drug)
-      && (!ser||r.Seriousness===ser)
-      && (!exp||r.ExpectednessReference===exp)
-      && (!rep||r.Reporter===rep);
-  });
-
-  filtered.sort((a,b)=>{
-    let va=a[col],vb=b[col];
-    if(typeof va==='number') return sortAsc?va-vb:vb-va;
-    return sortAsc?va.localeCompare(vb):vb.localeCompare(va);
-  });
-
-  currentPage=1;
-  renderTable();
-}
-
-function sortTable(col){
-  if(sortCol===col) sortAsc=!sortAsc; else {sortCol=col;sortAsc=true;}
-  document.getElementById('sortBy').value=col;
-  applyFilters();
-}
-
-function clearFilters(){
-  document.getElementById('searchBox').value='';
-  document.getElementById('filterDrug').value='';
-  document.getElementById('filterSeriousness').value='';
-  document.getElementById('filterExpect').value='';
-  document.getElementById('filterReporter').value='';
-  document.getElementById('sortBy').value='CaseID';
-  sortCol='CaseID';sortAsc=true;
-  applyFilters();
-}
-
-/* ═══════ STATS ═══════ */
-function renderStats(){
-  const total=RAW.length;
-  const serious=RAW.filter(r=>r.Seriousness!=='Not serious').length;
-  const unexpected=RAW.filter(r=>r.ExpectednessReference==='Unexpected').length;
-  const posRech=RAW.filter(r=>r.Rechallenge==='Positive').length;
-  const hosp=RAW.filter(r=>r.Seriousness==='Hospitalisation').length;
-  const drugs=[...new Set(RAW.map(r=>r.SuspectProduct))].length;
-
-  const cards=[
-    {label:'Total Cases',value:total,sub:'Synthetic PV cases',icon:'📋',c:'var(--accent)'},
-    {label:'Serious Events',value:serious,sub:`${((serious/total)*100).toFixed(0)}% of cases`,icon:'⚠️',c:'var(--accent4)'},
-    {label:'Hospitalisations',value:hosp,sub:'Highest severity tier',icon:'🏥',c:'var(--accent3)'},
-    {label:'Unexpected ADRs',value:unexpected,sub:'Unlabelled reactions',icon:'🚨',c:'var(--accent5)'},
-    {label:'Positive Rechallenges',value:posRech,sub:'Strong causality signal',icon:'🔁',c:'var(--accent2)'},
-    {label:'Suspect Drugs',value:drugs,sub:'Unique medications',icon:'💊',c:'var(--accent)'},
-  ];
-
-  document.getElementById('statsGrid').innerHTML = cards.map(c=>`
-    <div class="stat-card" style="--c1:${c.c}">
-      <div class="label">${c.label}</div>
-      <div class="value" style="color:${c.c}">${c.value}</div>
-      <div class="sub">${c.sub}</div>
-      <div class="icon">${c.icon}</div>
-    </div>`).join('');
-}
-
-/* ═══════ CHARTS ═══════ */
-const COLORS=['#4f8ef7','#38d9a9','#f8b400','#e95c7b','#a78bfa','#fb923c','#34d399','#f472b6'];
-
-function count(arr,key){
-  return arr.reduce((m,r)=>{m[r[key]]=(m[r[key]]||0)+1;return m},{});
-}
-
-function buildCharts(){
-  if(chartsBuilt) return; chartsBuilt=true;
-
-  const defaults={color:COLORS,plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}}};
-
-  // Drug × Reaction grouped
-  const drugs=[...new Set(RAW.map(r=>r.SuspectProduct))].sort();
-  const reactions=[...new Set(RAW.map(r=>r.Reaction))].sort();
-  new Chart(document.getElementById('chartDrugReaction'),{
-    type:'bar',
-    data:{
-      labels:drugs,
-      datasets:reactions.map((rx,i)=>({
-        label:rx,
-        data:drugs.map(d=>RAW.filter(r=>r.SuspectProduct===d&&r.Reaction===rx).length),
-        backgroundColor:COLORS[i%COLORS.length]+'cc',
-        borderRadius:4
-      }))
-    },
-    options:{scales:{x:{stacked:true,ticks:{color:'#8b949e'}},y:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'#30363d'}}},plugins:{legend:{labels:{color:'#8b949e',font:{size:9}}}},responsive:true}
-  });
-
-  // Seriousness pie
-  const ser=count(RAW,'Seriousness');
-  new Chart(document.getElementById('chartSeriousness'),{
-    type:'doughnut',
-    data:{labels:Object.keys(ser),datasets:[{data:Object.values(ser),backgroundColor:['#e95c7b','#f8b400','#38d9a9'],borderWidth:0,hoverOffset:6}]},
-    options:{plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:11}}}},cutout:'60%'}
-  });
-
-  // Onset histogram
-  const buckets={'1-5d':0,'6-10d':0,'11-15d':0,'16-21d':0};
-  RAW.forEach(r=>{
-    if(r.OnsetDays<=5) buckets['1-5d']++;
-    else if(r.OnsetDays<=10) buckets['6-10d']++;
-    else if(r.OnsetDays<=15) buckets['11-15d']++;
-    else buckets['16-21d']++;
-  });
-  new Chart(document.getElementById('chartOnset'),{
-    type:'bar',
-    data:{labels:Object.keys(buckets),datasets:[{label:'Cases',data:Object.values(buckets),backgroundColor:'#4f8ef7cc',borderRadius:6}]},
-    options:{scales:{x:{ticks:{color:'#8b949e'}},y:{ticks:{color:'#8b949e',stepSize:1},grid:{color:'#30363d'}}},plugins:{legend:{display:false}}}
-  });
-
-  // Reporter pie
-  const rep=count(RAW,'Reporter');
-  new Chart(document.getElementById('chartReporter'),{
-    type:'pie',
-    data:{labels:Object.keys(rep),datasets:[{data:Object.values(rep),backgroundColor:COLORS,borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}}}
-  });
-
-  // Expect doughnut
-  const exp=count(RAW,'ExpectednessReference');
-  new Chart(document.getElementById('chartExpect'),{
-    type:'doughnut',
-    data:{labels:Object.keys(exp),datasets:[{data:Object.values(exp),backgroundColor:['#38d9a9','#f8b400'],borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}},cutout:'55%'}
-  });
-
-  // Dechallenge/Rechallenge grouped bar
-  const dcVals=['Positive','Negative','Unknown','Not done'];
-  new Chart(document.getElementById('chartDR'),{
-    type:'bar',
-    data:{
-      labels:dcVals,
-      datasets:[
-        {label:'Dechallenge',data:dcVals.map(v=>RAW.filter(r=>r.Dechallenge===v).length),backgroundColor:'#4f8ef7bb',borderRadius:4},
-        {label:'Rechallenge',data:dcVals.map(v=>RAW.filter(r=>r.Rechallenge===v).length),backgroundColor:'#38d9a9bb',borderRadius:4}
-      ]
-    },
-    options:{scales:{x:{ticks:{color:'#8b949e'}},y:{ticks:{color:'#8b949e',stepSize:1},grid:{color:'#30363d'}}},plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}}}
-  });
-
-  // Scatter age vs onset
-  new Chart(document.getElementById('chartScatter'),{
-    type:'scatter',
-    data:{datasets:[{
-      label:'Age vs Onset Days',
-      data:RAW.map(r=>({x:r.Age,y:r.OnsetDays,label:r.CaseID})),
-      backgroundColor:COLORS.map(c=>c+'cc'),
-      pointRadius:7,pointHoverRadius:9
-    }]},
-    options:{
-      scales:{
-        x:{title:{display:true,text:'Patient Age (years)',color:'#8b949e'},ticks:{color:'#8b949e'},grid:{color:'#30363d'}},
-        y:{title:{display:true,text:'Onset Days',color:'#8b949e'},ticks:{color:'#8b949e'},grid:{color:'#30363d'}}
-      },
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.label} | Age:${ctx.raw.x} Onset:${ctx.raw.y}d`}}}
-    }
-  });
-
-  // Reaction frequency bars
-  const rxCount=count(RAW,'Reaction');
-  const sorted=Object.entries(rxCount).sort((a,b)=>b[1]-a[1]);
-  const max=sorted[0][1];
-  document.getElementById('reactionFreq').innerHTML=sorted.map(([rx,n],i)=>`
-    <div class="prog-row">
-      <div class="prog-label"><span>${rx}</span><span>${n} case${n>1?'s':''}</span></div>
-      <div class="prog-track"><div class="prog-fill" style="width:${(n/max)*100}%;background:${COLORS[i%COLORS.length]}"></div></div>
-    </div>`).join('');
-}
-
-/* ═══════ DRUG PROFILES ═══════ */
-function renderDrugProfiles(){
-  const drugs=[...new Set(RAW.map(r=>r.SuspectProduct))].sort();
-  document.getElementById('drugGrid').innerHTML = drugs.map(d=>{
-    const cases=RAW.filter(r=>r.SuspectProduct===d);
-    const reactions=[...new Set(cases.map(r=>r.Reaction))];
-    const serious=cases.filter(r=>r.Seriousness!=='Not serious').length;
-    const avgOnset=(cases.reduce((s,r)=>s+r.OnsetDays,0)/cases.length).toFixed(1);
-    return `<div class="drug-card" onclick="showDrugDetail('${d}')">
-      <div class="drug-name">💊 ${d}</div>
-      <div class="drug-meta">${cases.length} case${cases.length>1?'s':''} · ${reactions.join(', ')}</div>
-      <div class="drug-stat"><span>Avg onset</span><strong style="color:var(--accent)">${avgOnset}d</strong></div>
-      <div class="drug-stat"><span>Serious</span><strong style="color:var(--accent4)">${serious}/${cases.length}</strong></div>
-      <div class="drug-stat"><span>Unexpected</span><strong style="color:var(--accent3)">${cases.filter(r=>r.ExpectednessReference==='Unexpected').length}</strong></div>
-    </div>`;
-  }).join('');
-}
-
-function showDrugDetail(drug){
-  const cases=RAW.filter(r=>r.SuspectProduct===drug);
-  document.getElementById('drugDetailTitle').textContent=`💊 ${drug} — Case Summary (${cases.length} cases)`;
-  document.getElementById('drugDetailBody').innerHTML=`
-    <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;min-width:600px">
-      <thead><tr style="background:var(--bg-dark)">
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Case ID</th>
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Age/Sex</th>
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Reaction</th>
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Onset</th>
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Seriousness</th>
-        <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Causality</th>
-      </tr></thead>
-      <tbody>${cases.map(r=>{const c=computeCausality(r);return`<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:.5rem .8rem;font-size:.82rem;color:var(--accent)">${r.CaseID}</td>
-        <td style="padding:.5rem .8rem;font-size:.82rem">${r.Age}y/${r.Sex}</td>
-        <td style="padding:.5rem .8rem;font-size:.82rem;font-weight:600">${r.Reaction}</td>
-        <td style="padding:.5rem .8rem;font-size:.82rem">${r.OnsetDays}d</td>
-        <td style="padding:.5rem .8rem;font-size:.82rem">${seriousnessBadge(r.Seriousness)}</td>
-        <td style="padding:.5rem .8rem;font-size:.82rem">${causBadge(c.cat,c.color)}</td>
-      </tr>`}).join('')}</tbody>
-    </table></div>`;
-  document.getElementById('drugDetail').style.display='block';
-  document.getElementById('drugDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-/* ═══════ CAUSALITY TABLE ═══════ */
-function renderCausTable(){
-  const tbody=document.getElementById('causTable');
-  tbody.innerHTML=RAW.map(r=>{
-    const c=computeCausality(r);
-    const rationale=[];
-    if(r.OnsetDays<=7) rationale.push('Short onset');
-    else if(r.OnsetDays<=21) rationale.push('Moderate onset');
-    if(r.ExpectednessReference==='Known') rationale.push('Labelled reaction');
-    if(r.Dechallenge==='Positive') rationale.push('+Dechallenge');
-    if(r.Rechallenge==='Positive') rationale.push('+Rechallenge');
-    if(r.ConcomitantMedicines==='None reported') rationale.push('No concomitants');
-    return `<tr>
-      <td style="color:var(--accent);font-weight:700">${r.CaseID}</td>
-      <td>${r.SuspectProduct}</td>
-      <td>${r.Reaction}</td>
-      <td>${dcBadge(r.Dechallenge)}</td>
-      <td>${dcBadge(r.Rechallenge)}</td>
-      <td>${expectBadge(r.ExpectednessReference)}</td>
-      <td>${causBadge(c.cat,c.color)}</td>
-      <td style="font-size:.76rem;color:var(--text-muted)">${rationale.join(' · ')}</td>
-    </tr>`;
-  }).join('');
-}
-
-/* ═══════ FIELD GUIDE ═══════ */
-function renderFieldGuide(){
-  document.getElementById('fgBody').innerHTML=FIELD_GUIDE.map(f=>`<tr>
-    <td><strong>${f.Field}</strong></td>
-    <td>${f.Required==='Yes'?'<span class="badge badge-not-serious">✔ Required</span>':'<span class="badge badge-unk">Optional</span>'}</td>
-    <td style="color:var(--text-muted);font-size:.82rem">${f.Notes}</td>
-    <td style="font-size:.78rem;color:var(--accent)">${f.Source}</td>
-  </tr>`).join('');
-
-  document.getElementById('pvConcepts').innerHTML=PV_CONCEPTS.map(c=>`
-    <div style="background:var(--bg-dark);border-radius:9px;padding:.9rem 1rem">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:.3rem">${c.title}</div>
-      <div style="font-size:.78rem;color:var(--text-muted)">${c.body}</div>
-    </div>`).join('');
-}
-
-/* ═══════ SUMMARY REPORT ═══════ */
-function renderSummary(){
-  const total=RAW.length;
-  const drugs=[...new Set(RAW.map(r=>r.SuspectProduct))].sort();
-  const rxDist=count(RAW,'Reaction');
-  const serDist=count(RAW,'Seriousness');
-
-  document.getElementById('summaryReport').innerHTML=`
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1.8rem 2rem;margin-bottom:1.5rem">
-      <div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:1.2rem;margin-bottom:1.4rem">
-        <div style="font-size:1.5rem;font-weight:900;color:var(--accent);letter-spacing:-.5px">ADR Identification Summary Report</div>
-        <div style="font-size:.85rem;color:var(--text-muted);margin-top:.3rem">PV Task 1 · Workora Synthetic Pharmacovigilance Training Pack · Educational Only</div>
-        <div style="font-size:.78rem;color:var(--text-muted);margin-top:.2rem">Generated: ${new Date().toLocaleString()}</div>
+<!-- ═════════ DATA QUALITY ═════════ -->
+<section class="block alt" id="quality">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Data quality review</div>
+        <h2 class="title">What needs a follow-up query.</h2>
+        <p class="lead">Automated checks for case validity, inconsistencies and implausible values. In real practice each flag becomes a follow-up request to the reporter.</p>
       </div>
-
-      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">1. Objective</div>
-      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1.4rem">Analyze 18 fictional patient case scenarios to identify potential Adverse Drug Reactions (ADRs). Review symptoms, medication history, and timelines to determine suspect drug causality using WHO-UMC criteria.</p>
-
-      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">2. Dataset Overview</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.7rem;margin-bottom:1.4rem">
-        ${[['Total Cases',total,'#4f8ef7'],['Suspect Drugs',drugs.length,'#38d9a9'],['Serious Events',RAW.filter(r=>r.Seriousness!=='Not serious').length,'#e95c7b'],['Hospitalisations',RAW.filter(r=>r.Seriousness==='Hospitalisation').length,'#f8b400'],['Unexpected ADRs',RAW.filter(r=>r.ExpectednessReference==='Unexpected').length,'#a78bfa']]
-          .map(([l,v,c])=>`<div style="background:var(--bg-dark);border-radius:8px;padding:.8rem;text-align:center"><div style="font-size:1.6rem;font-weight:800;color:${c}">${v}</div><div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">${l}</div></div>`).join('')}
-      </div>
-
-      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">3. ADR Identification Table</div>
-      <div style="overflow-x:auto;margin-bottom:1.4rem">
-        <table style="width:100%;border-collapse:collapse;font-size:.8rem">
-          <thead><tr style="background:var(--bg-dark)">
-            ${['Case ID','Drug','Reaction','Onset','Seriousness','Dechallenge','Rechallenge','Causality Category'].map(h=>`<th style="padding:.6rem .9rem;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);border-bottom:1px solid var(--border)">${h}</th>`).join('')}
-          </tr></thead>
-          <tbody>
-            ${RAW.map((r,i)=>{const c=computeCausality(r);return`<tr style="border-bottom:1px solid rgba(48,54,61,.4);background:${i%2?'rgba(28,34,48,.4)':'transparent'}">
-              <td style="padding:.55rem .9rem;color:var(--accent);font-weight:700">${r.CaseID}</td>
-              <td style="padding:.55rem .9rem;font-weight:600">${r.SuspectProduct}</td>
-              <td style="padding:.55rem .9rem">${r.Reaction}</td>
-              <td style="padding:.55rem .9rem;text-align:center;color:${r.OnsetDays<=7?'#38d9a9':r.OnsetDays<=14?'#f8b400':'#e95c7b'};font-weight:600">${r.OnsetDays}d</td>
-              <td style="padding:.55rem .9rem">${seriousnessBadge(r.Seriousness)}</td>
-              <td style="padding:.55rem .9rem">${dcBadge(r.Dechallenge)}</td>
-              <td style="padding:.55rem .9rem">${dcBadge(r.Rechallenge)}</td>
-              <td style="padding:.55rem .9rem">${causBadge(c.cat,c.color)}</td>
-            </tr>`}).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">4. Drug-Level Analysis</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.8rem;margin-bottom:1.4rem">
-        ${drugs.map(d=>{
-          const cases=RAW.filter(r=>r.SuspectProduct===d);
-          const avg=(cases.reduce((s,r)=>s+r.OnsetDays,0)/cases.length).toFixed(1);
-          const rx=[...new Set(cases.map(r=>r.Reaction))].join(', ');
-          return`<div style="background:var(--bg-dark);border-radius:9px;padding:.9rem 1rem;border-left:3px solid var(--accent)">
-            <div style="font-weight:700;margin-bottom:.3rem">💊 ${d}</div>
-            <div style="font-size:.77rem;color:var(--text-muted)">Cases: <strong>${cases.length}</strong> · Avg onset: <strong>${avg}d</strong></div>
-            <div style="font-size:.77rem;color:var(--text-muted);margin-top:.2rem">ADR(s): ${rx}</div>
-            <div style="font-size:.77rem;color:var(--accent4);margin-top:.2rem">Serious: ${cases.filter(r=>r.Seriousness!=='Not serious').length}/${cases.length}</div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <div style="font-weight:700;font-size:.9rem;margin-bottom:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">5. Causality Distribution</div>
-      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem">Pre-computed using simplified WHO-UMC heuristics (temporal relationship, expectedness, dechallenge, rechallenge, concomitant medications).</div>
-      ${(()=>{
-        const cats={};
-        RAW.forEach(r=>{const c=computeCausality(r);cats[c.cat]=(cats[c.cat]||0)+1});
-        return Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat,n])=>{
-          const pct=((n/RAW.length)*100).toFixed(0);
-          const c=RAW.map(r=>computeCausality(r)).find(c=>c.cat===cat);
-          return`<div class="prog-row">
-            <div class="prog-label"><span style="color:${c?.color||'#8b949e'}">${cat}</span><span>${n} cases (${pct}%)</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${c?.color||'#8b949e'}"></div></div>
-          </div>`;
-        }).join('');
-      })()}
-
-      <div style="margin-top:1.4rem;background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);border-radius:9px;padding:1rem 1.2rem">
-        <div style="font-weight:700;margin-bottom:.4rem">⚠️ Disclaimer</div>
-        <div style="font-size:.78rem;color:var(--text-muted)">Every case and identifier in this dataset is fictional and de-identified. This report is for educational analysis only and must not be used for clinical care, regulatory submission, or real-world pharmacovigilance decisions. Do not infer causation from reporting frequency alone.</div>
-      </div>
-    </div>`;
-}
-
-/* ═══════ DETAIL MODAL ═══════ */
-function openDetail(id){
-  const r=RAW.find(x=>x.CaseID===id);
-  if(!r) return;
-  const c=computeCausality(r);
-  document.getElementById('modalTitle').textContent=`${r.CaseID} · ${r.SuspectProduct}`;
-  document.getElementById('modalBody').innerHTML=`
-    <div class="narrative-box">📝 ${r.Narrative}</div>
-    <div class="modal-grid" style="margin-top:1rem">
-      <div class="modal-field"><div class="mf-label">Patient</div><div class="mf-val">${r.Age} years · ${r.Sex}</div></div>
-      <div class="modal-field"><div class="mf-label">Suspect Drug</div><div class="mf-val" style="color:var(--accent)">💊 ${r.SuspectProduct}</div></div>
-      <div class="modal-field"><div class="mf-label">Dose & Route</div><div class="mf-val">${r.Dose} · ${r.Route}</div></div>
-      <div class="modal-field"><div class="mf-label">Indication</div><div class="mf-val">${r.Indication}</div></div>
-      <div class="modal-field"><div class="mf-label">Adverse Reaction</div><div class="mf-val" style="color:var(--accent4)">⚠️ ${r.Reaction}</div></div>
-      <div class="modal-field"><div class="mf-label">Onset (Days)</div><div class="mf-val" style="color:${r.OnsetDays<=7?'#38d9a9':r.OnsetDays<=14?'#f8b400':'#e95c7b'}">${r.OnsetDays} days after treatment</div></div>
-      <div class="modal-field"><div class="mf-label">Expectedness</div><div class="mf-val">${expectBadge(r.ExpectednessReference)}</div></div>
-      <div class="modal-field"><div class="mf-label">Seriousness</div><div class="mf-val">${seriousnessBadge(r.Seriousness)}</div></div>
-      <div class="modal-field"><div class="mf-label">Dechallenge</div><div class="mf-val">${dcBadge(r.Dechallenge)}</div></div>
-      <div class="modal-field"><div class="mf-label">Rechallenge</div><div class="mf-val">${dcBadge(r.Rechallenge)}</div></div>
-      <div class="modal-field"><div class="mf-label">Concomitant Meds</div><div class="mf-val">${r.ConcomitantMedicines}</div></div>
-      <div class="modal-field"><div class="mf-label">Reporter</div><div class="mf-val">${r.Reporter}</div></div>
-      <div class="modal-field full"><div class="mf-label">WHO-UMC Causality</div><div class="mf-val" style="font-size:1.1rem">${causBadge(c.cat,c.color)}</div></div>
     </div>
-    <div style="margin-top:1rem">
-      <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:.6rem">📅 Event Timeline</div>
-      <div class="timeline">
-        <div class="tl-item"><div class="tl-dot"></div><div class="tl-title">Day 0 — Drug Initiated</div><div class="tl-sub">${r.SuspectProduct} ${r.Dose} started (${r.Indication})</div></div>
-        <div class="tl-item"><div class="tl-dot orange"></div><div class="tl-title">Day ${r.OnsetDays} — ADR Onset</div><div class="tl-sub">${r.Reaction} reported</div></div>
-        <div class="tl-item"><div class="tl-dot red"></div><div class="tl-title">Post-onset — Drug Stopped</div><div class="tl-sub">Dechallenge: ${r.Dechallenge} · Rechallenge: ${r.Rechallenge}</div></div>
+    <div class="kpis" id="qKpis" style="margin-bottom:20px"></div>
+    <div class="table-card">
+      <div class="table-scroll" style="max-height:560px">
+        <table><thead><tr><th>Case</th><th>Severity</th><th>Check</th><th>Finding</th><th>Suggested follow-up</th></tr></thead><tbody id="qBody"></tbody></table>
       </div>
-    </div>`;
-  document.getElementById('detailBackdrop').classList.add('open');
-}
+    </div>
+  </div>
+</section>
 
-function closeDetail(e){if(e.target===document.getElementById('detailBackdrop')) closeModalBtn()}
-function closeModalBtn(){document.getElementById('detailBackdrop').classList.remove('open')}
+<!-- ═════════ REFERENCE ═════════ -->
+<section class="block" id="reference">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Reference</div>
+        <h2 class="title">The method, explained.</h2>
+        <p class="lead">Minimum validity criteria, seriousness rules, causality categories and the core vocabulary of pharmacovigilance.</p>
+      </div>
+    </div>
 
-/* ═══════ WHO CAUSALITY TOOL ═══════ */
-function whoSelect(el,key,val){
-  el.closest('.opts').querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
-  el.classList.add('sel');
-  whoScores[key]=val;
-}
+    <div class="two" style="margin-bottom:20px">
+      <div class="card">
+        <h3 style="margin-bottom:4px">Field guide</h3>
+        <p class="card-desc">Minimum criteria for a valid individual case safety report (ICSR).</p>
+        <table><thead><tr><th>Field</th><th>Required</th><th>Guidance</th><th>Source</th></tr></thead><tbody id="fgBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:4px">Seriousness criteria</h3>
+        <p class="card-desc">An event is serious if it meets any of these (ICH E2A). Seriousness is not the same as severity.</p>
+        <div class="checks" id="serCrit"></div>
+        <div class="callout info" style="margin-top:18px"><span>ℹ️</span><span><b>Severity vs seriousness.</b> A “severe” headache is intense but usually not serious. A “mild” event that leads to hospital admission is serious. Regulatory timelines follow seriousness.</span></div>
+      </div>
+    </div>
 
-function calcCausality(){
-  const vals=Object.values(whoScores);
-  if(vals.includes(null)){showToast('Please answer all 6 questions','info');return;}
-  const total=vals.reduce((s,v)=>s+v,0);
-  let cat,desc,color;
-  if(total>=10){cat='Certain';desc='Event is conclusively attributed to the drug.';color='#38d9a9'}
-  else if(total>=7){cat='Probable';desc='Reasonable time sequence; no confounding factors; positive dechallenge.';color='#4f8ef7'}
-  else if(total>=4){cat='Possible';desc='Reasonable time sequence; could also be explained by other causes.';color='#f8b400'}
-  else if(total>=2){cat='Unlikely';desc='A reaction with a doubtful time sequence; other causes are more likely.';color='#e95c7b'}
-  else{cat='Conditional/Unassessable';desc='Insufficient data or contradictory information.';color='#8b949e'}
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="margin-bottom:4px">WHO-UMC causality categories</h3>
+      <p class="card-desc">Official definitions, with the score bands used by this dashboard’s heuristic and the Naranjo equivalent.</p>
+      <div style="overflow-x:auto"><table><thead><tr><th>Category</th><th>WHO-UMC definition</th><th>Heuristic score</th><th>Naranjo</th></tr></thead><tbody id="whoDefs"></tbody></table></div>
+    </div>
 
-  const r=document.getElementById('causResult');
-  r.style.display='flex';
-  document.getElementById('causLevel').textContent=cat;
-  document.getElementById('causLevel').style.color=color;
-  document.getElementById('causDesc').textContent=desc;
-  document.getElementById('causScore').textContent=`Score: ${total}`;
-  showToast(`Causality: ${cat} (score ${total})`,'success');
-}
+    <h3 style="margin:36px 0 16px">Key concepts</h3>
+    <div class="ref-grid" id="concepts"></div>
 
-function resetCausality(){
-  whoScores={time:null,known:null,dech:null,rech:null,alt:null,obj:null};
-  document.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
-  document.getElementById('causResult').style.display='none';
-}
+    <h3 style="margin:48px 0 6px">Frequently asked questions</h3>
+    <div id="faq"></div>
+  </div>
+</section>
 
-/* ═══════ TABS ═══════ */
-function switchTab(id,el){
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  el.classList.add('active');
-  if(id==='analytics' && !chartsBuilt) buildCharts();
-}
-
-/* ═══════ EXPORT ═══════ */
-function exportCSV(){
-  const headers=['CaseID','Age','Sex','SuspectProduct','Dose','Route','Indication','Reaction','OnsetDays','ExpectednessReference','Seriousness','Dechallenge','Rechallenge','ConcomitantMedicines','Reporter','CausalityCategory'];
-  const rows=RAW.map(r=>{
-    const c=computeCausality(r);
-    return [r.CaseID,r.Age,r.Sex,r.SuspectProduct,r.Dose,r.Route,r.Indication,r.Reaction,r.OnsetDays,r.ExpectednessReference,r.Seriousness,r.Dechallenge,r.Rechallenge,r.ConcomitantMedicines,r.Reporter,c.cat].map(v=>`"${v}"`).join(',');
-  });
-  const blob=new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='ADR_Identification_Report.csv';a.click();
-  showToast('CSV exported successfully ✔','success');
-}
-
-function printReport(){
-  switchTab('summary',document.querySelectorAll('.tab')[5]);
-  setTimeout(()=>window.print(),400);
-}
-
-/* ═══════ TOAST ═══════ */
-function showToast(msg,type='info'){
-  const wrap=document.getElementById('toastWrap');
-  const t=document.createElement('div');
-  t.className=`toast ${type}`;
-  t.innerHTML=`${type==='success'?'✅':'ℹ️'} ${msg}`;
-  wrap.appendChild(t);
-  setTimeout(()=>t.remove(),3500);
-}
-
-/* ═══════ INIT ═══════ */
-document.addEventListener('DOMContentLoaded',()=>{
-  renderStats();
-  populateFilters();
-  applyFilters();
-  renderDrugProfiles();
-  renderCausTable();
-  renderFieldGuide();
-  renderSummary();
-});
-</script>
+<!-- ═════════ REPORT ═════════ -->
+<section class="block alt" id="report">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Summary report</div>
+        <h2 class="title">Ready to print or save as PDF.</h2>
+      </div>
+      <div style="display:flex;gap:10px" class="no-print">
+        <button class="btn btn-secondary" onclick="exportCSV()">Download CSV</button>
+        <button class="btn btn-primary" onclick="printReport()">Print / Save PDF</button>
+      </div>
+    </div>
+    <div class="report" id="reportBody"></div>
+  </div>
+</section>
 
 <footer>
-  <strong>ADRInsight</strong> · Workora Synthetic PV Training Pack · Task 1 — ADR Identification Basics ·
-  <a href="https://youtu.be/CqoYIT_qoTM" target="_blank">Watch Tutorial</a> ·
-  <span style="color:var(--accent4)">Educational use only — not for clinical or regulatory purposes</span>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="brand" style="margin-bottom:12px">
+          <span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M10.5 20.5l10-10a4.95 4.95 0 10-7-7l-10 10a4.95 4.95 0 107 7z"/><path d="M8.5 8.5l7 7"/></svg></span>ADR Insight
+        </div>
+        <p style="max-width:460px">Built on the Workora Synthetic Pharmacovigilance Training Pack. Every case and identifier is fictional and de-identified. Keep unknown facts unknown, distinguish severity from regulatory seriousness, and document the rationale and limitations behind every classification.</p>
+      </div>
+      <div>
+        <h5>Explore</h5>
+        <ul><li><a href="#cases">Case explorer</a></li><li><a href="#analytics">Analytics</a></li><li><a href="#drugs">Drug profiles</a></li><li><a href="#causality">Causality tools</a></li></ul>
+      </div>
+      <div>
+        <h5>Resources</h5>
+        <ul><li><a href="#reference">Field guide</a></li><li><a href="#quality">Data quality</a></li><li><a href="#report">Summary report</a></li><li><a href="https://youtu.be/CqoYIT_qoTM" target="_blank" rel="noopener">Video tutorial</a></li></ul>
+      </div>
+    </div>
+    <div class="foot-bottom"><span>Educational use only. Not medical advice. Not for clinical care or regulatory submission.</span><span>Pharmacovigilance Task 1 · ADR Identification</span></div>
+  </div>
 </footer>
+
+<!-- ═════════ MODAL ═════════ -->
+<div class="backdrop" id="backdrop" onclick="if(event.target===this)closeCase()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═════════ DATA (from pv_task1_adr_identification_pack/case_scenarios.csv) ═════════ */
+const RAW = [{"CaseID": "SYN-PV-001", "Narrative": "A 30-year-old patient received Amoxicillin orally for a documented indication. Rash was reported 17 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 30, "Sex": "Male", "SuspectProduct": "Amoxicillin", "Dose": "20 mg once daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Rash", "OnsetDays": 17, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Negative", "Rechallenge": "Positive", "ConcomitantMedicines": "None reported", "Reporter": "Consumer", "Outcome": "Not recovered"}, {"CaseID": "SYN-PV-002", "Narrative": "A 36-year-old patient received Atorvastatin orally for a documented indication. Myalgia was reported 1 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 36, "Sex": "Unknown", "SuspectProduct": "Atorvastatin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Myalgia", "OnsetDays": 1, "ExpectednessReference": "Known", "Seriousness": "Not serious", "Dechallenge": "Unknown", "Rechallenge": "Negative", "ConcomitantMedicines": "None reported", "Reporter": "Pharmacist", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-003", "Narrative": "A 34-year-old patient received Metformin orally for a documented indication. Nausea was reported 13 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 34, "Sex": "Female", "SuspectProduct": "Metformin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Nausea", "OnsetDays": 13, "ExpectednessReference": "Known", "Seriousness": "Hospitalisation", "Dechallenge": "Negative", "Rechallenge": "Negative", "ConcomitantMedicines": "Vitamin D", "Reporter": "Consumer", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-004", "Narrative": "A 61-year-old patient received Amlodipine orally for a documented indication. Peripheral oedema was reported 21 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 61, "Sex": "Male", "SuspectProduct": "Amlodipine", "Dose": "500 mg twice daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Peripheral oedema", "OnsetDays": 21, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Positive", "Rechallenge": "Negative", "ConcomitantMedicines": "None reported", "Reporter": "Pharmacist", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-005", "Narrative": "A 33-year-old patient received Ciprofloxacin orally for a documented indication. Tendon pain was reported 15 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 33, "Sex": "Unknown", "SuspectProduct": "Ciprofloxacin", "Dose": "500 mg twice daily", "Route": "Oral", "Indication": "Infection", "Reaction": "Tendon pain", "OnsetDays": 15, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Unknown", "Rechallenge": "Not done", "ConcomitantMedicines": "None reported", "Reporter": "Pharmacist", "Outcome": "Not recovered"}, {"CaseID": "SYN-PV-006", "Narrative": "A 31-year-old patient received Sertraline orally for a documented indication. Dizziness was reported 3 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 31, "Sex": "Unknown", "SuspectProduct": "Sertraline", "Dose": "20 mg once daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Dizziness", "OnsetDays": 3, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Positive", "Rechallenge": "Not done", "ConcomitantMedicines": "Paracetamol", "Reporter": "Physician", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-007", "Narrative": "A 63-year-old patient received Omeprazole orally for a documented indication. Headache was reported 16 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 63, "Sex": "Male", "SuspectProduct": "Omeprazole", "Dose": "500 mg twice daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Headache", "OnsetDays": 16, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Negative", "Rechallenge": "Negative", "ConcomitantMedicines": "Paracetamol", "Reporter": "Consumer", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-008", "Narrative": "A 36-year-old patient received Losartan orally for a documented indication. Fatigue was reported 2 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 36, "Sex": "Male", "SuspectProduct": "Losartan", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Infection", "Reaction": "Fatigue", "OnsetDays": 2, "ExpectednessReference": "Unexpected", "Seriousness": "Not serious", "Dechallenge": "Negative", "Rechallenge": "Not done", "ConcomitantMedicines": "Paracetamol", "Reporter": "Pharmacist", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-009", "Narrative": "A 78-year-old patient received Amoxicillin orally for a documented indication. Rash was reported 7 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 78, "Sex": "Unknown", "SuspectProduct": "Amoxicillin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Rash", "OnsetDays": 7, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Positive", "Rechallenge": "Not done", "ConcomitantMedicines": "Vitamin D", "Reporter": "Physician", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-010", "Narrative": "A 57-year-old patient received Atorvastatin orally for a documented indication. Myalgia was reported 21 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 57, "Sex": "Female", "SuspectProduct": "Atorvastatin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Infection", "Reaction": "Myalgia", "OnsetDays": 21, "ExpectednessReference": "Known", "Seriousness": "Hospitalisation", "Dechallenge": "Unknown", "Rechallenge": "Negative", "ConcomitantMedicines": "Paracetamol", "Reporter": "Pharmacist", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-011", "Narrative": "A 23-year-old patient received Metformin orally for a documented indication. Nausea was reported 19 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 23, "Sex": "Unknown", "SuspectProduct": "Metformin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Nausea", "OnsetDays": 19, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Unknown", "Rechallenge": "Positive", "ConcomitantMedicines": "None reported", "Reporter": "Consumer", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-012", "Narrative": "A 24-year-old patient received Amlodipine orally for a documented indication. Peripheral oedema was reported 4 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 24, "Sex": "Female", "SuspectProduct": "Amlodipine", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Peripheral oedema", "OnsetDays": 4, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Unknown", "Rechallenge": "Positive", "ConcomitantMedicines": "None reported", "Reporter": "Pharmacist", "Outcome": "Not recovered"}, {"CaseID": "SYN-PV-013", "Narrative": "A 75-year-old patient received Ciprofloxacin orally for a documented indication. Tendon pain was reported 5 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 75, "Sex": "Female", "SuspectProduct": "Ciprofloxacin", "Dose": "500 mg twice daily", "Route": "Oral", "Indication": "Diabetes", "Reaction": "Tendon pain", "OnsetDays": 5, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Negative", "Rechallenge": "Positive", "ConcomitantMedicines": "Vitamin D", "Reporter": "Physician", "Outcome": "Not recovered"}, {"CaseID": "SYN-PV-014", "Narrative": "A 75-year-old patient received Sertraline orally for a documented indication. Dizziness was reported 9 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 75, "Sex": "Female", "SuspectProduct": "Sertraline", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Diabetes", "Reaction": "Dizziness", "OnsetDays": 9, "ExpectednessReference": "Known", "Seriousness": "Hospitalisation", "Dechallenge": "Negative", "Rechallenge": "Negative", "ConcomitantMedicines": "Paracetamol", "Reporter": "Physician", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-015", "Narrative": "A 33-year-old patient received Omeprazole orally for a documented indication. Headache was reported 16 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovered. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 33, "Sex": "Male", "SuspectProduct": "Omeprazole", "Dose": "20 mg once daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Headache", "OnsetDays": 16, "ExpectednessReference": "Known", "Seriousness": "Hospitalisation", "Dechallenge": "Unknown", "Rechallenge": "Positive", "ConcomitantMedicines": "None reported", "Reporter": "Physician", "Outcome": "Recovered"}, {"CaseID": "SYN-PV-016", "Narrative": "A 66-year-old patient received Losartan orally for a documented indication. Fatigue was reported 10 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 66, "Sex": "Unknown", "SuspectProduct": "Losartan", "Dose": "20 mg once daily", "Route": "Oral", "Indication": "Diabetes", "Reaction": "Fatigue", "OnsetDays": 10, "ExpectednessReference": "Unexpected", "Seriousness": "Not serious", "Dechallenge": "Positive", "Rechallenge": "Negative", "ConcomitantMedicines": "None reported", "Reporter": "Physician", "Outcome": "Not recovered"}, {"CaseID": "SYN-PV-017", "Narrative": "A 57-year-old patient received Amoxicillin orally for a documented indication. Rash was reported 21 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was recovering. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 57, "Sex": "Unknown", "SuspectProduct": "Amoxicillin", "Dose": "5 mg once daily", "Route": "Oral", "Indication": "Hypertension", "Reaction": "Rash", "OnsetDays": 21, "ExpectednessReference": "Known", "Seriousness": "Medically important", "Dechallenge": "Unknown", "Rechallenge": "Positive", "ConcomitantMedicines": "Vitamin D", "Reporter": "Physician", "Outcome": "Recovering"}, {"CaseID": "SYN-PV-018", "Narrative": "A 56-year-old patient received Atorvastatin orally for a documented indication. Myalgia was reported 17 day(s) after treatment began. The reporter stated that treatment was stopped and the patient was not recovered at follow-up. Medical history and concomitant medicines are listed in the companion fields; facts not present must be recorded as unknown.", "Age": 56, "Sex": "Female", "SuspectProduct": "Atorvastatin", "Dose": "500 mg twice daily", "Route": "Oral", "Indication": "Anxiety", "Reaction": "Myalgia", "OnsetDays": 17, "ExpectednessReference": "Known", "Seriousness": "Hospitalisation", "Dechallenge": "Unknown", "Rechallenge": "Positive", "ConcomitantMedicines": "None reported", "Reporter": "Physician", "Outcome": "Not recovered"}];
+
+const DRUGS = {
+  Amoxicillin:{cls:"Aminopenicillin (β-lactam antibacterial)",moa:"Binds penicillin-binding proteins and inhibits bacterial cell-wall synthesis.",dose:"250–500 mg three times daily or 500–875 mg twice daily",doseRange:[250,1000],ind:["Infection"],indText:"Bacterial infections (respiratory, ENT, urinary, H. pylori regimens)",adrs:["Rash","Diarrhoea","Nausea","Urticaria","Anaphylaxis (rare)","Stevens–Johnson syndrome (rare)"],note:"Maculopapular rash is common, especially with concurrent viral infection. Urticarial rash suggests true hypersensitivity and warrants allergy labelling."},
+  Atorvastatin:{cls:"HMG-CoA reductase inhibitor (statin)",moa:"Inhibits hepatic cholesterol synthesis, up-regulating LDL receptors.",dose:"10–80 mg once daily",doseRange:[10,80],ind:["Hyperlipidaemia","Cardiovascular prevention"],indText:"Hypercholesterolaemia; cardiovascular risk reduction",adrs:["Myalgia","Raised transaminases","Headache","GI upset","Rhabdomyolysis (rare)"],note:"Muscle symptoms warrant CK measurement. Risk rises with high doses, CYP3A4 inhibitors, hypothyroidism and older age."},
+  Metformin:{cls:"Biguanide antidiabetic",moa:"Reduces hepatic gluconeogenesis and improves peripheral insulin sensitivity.",dose:"500 mg–2 g daily in divided doses with meals",doseRange:[500,2550],ind:["Diabetes"],indText:"Type 2 diabetes mellitus",adrs:["Nausea","Diarrhoea","Abdominal pain","Metallic taste","Vitamin B12 deficiency","Lactic acidosis (rare)"],note:"GI effects are dose-related and usually settle with slow titration or modified-release formulations."},
+  Amlodipine:{cls:"Dihydropyridine calcium-channel blocker",moa:"Blocks L-type calcium channels in vascular smooth muscle, causing vasodilation.",dose:"5–10 mg once daily",doseRange:[2.5,10],ind:["Hypertension","Angina"],indText:"Hypertension; chronic stable angina",adrs:["Peripheral oedema","Flushing","Headache","Dizziness","Palpitations"],note:"Ankle oedema is dose-dependent, caused by pre-capillary dilation, and does not respond well to diuretics."},
+  Ciprofloxacin:{cls:"Fluoroquinolone antibacterial",moa:"Inhibits bacterial DNA gyrase and topoisomerase IV.",dose:"250–750 mg twice daily",doseRange:[250,750],ind:["Infection"],indText:"Bacterial infections (urinary, GI, respiratory where appropriate)",adrs:["Tendinitis / tendon rupture","Nausea","Diarrhoea","QT prolongation","Peripheral neuropathy","CNS effects"],note:"Boxed warning for tendinopathy. Higher risk in patients over 60, on corticosteroids, or after organ transplant; can occur months after stopping."},
+  Sertraline:{cls:"Selective serotonin reuptake inhibitor (SSRI)",moa:"Inhibits presynaptic serotonin reuptake.",dose:"50–200 mg once daily",doseRange:[25,200],ind:["Depression","Anxiety"],indText:"Depression, anxiety disorders, OCD, PTSD",adrs:["Nausea","Dizziness","Insomnia","Sexual dysfunction","Hyponatraemia","Serotonin syndrome (rare)"],note:"Dizziness is common at start-up and on abrupt withdrawal. Hyponatraemia risk is higher in older adults."},
+  Omeprazole:{cls:"Proton-pump inhibitor",moa:"Irreversibly inhibits gastric H⁺/K⁺-ATPase.",dose:"20–40 mg once daily",doseRange:[10,40],ind:["GERD","Peptic ulcer"],indText:"GORD, peptic ulcer disease, H. pylori eradication",adrs:["Headache","Abdominal pain","Diarrhoea","Hypomagnesaemia (long term)","C. difficile infection"],note:"Headache is among the most frequently listed reactions. Long-term use warrants magnesium and B12 monitoring."},
+  Losartan:{cls:"Angiotensin II receptor blocker (ARB)",moa:"Blocks AT1 receptors, reducing vasoconstriction and aldosterone release.",dose:"25–100 mg once daily",doseRange:[25,100],ind:["Hypertension"],indText:"Hypertension; diabetic nephropathy; heart failure",adrs:["Dizziness","Hyperkalaemia","Renal impairment","Hypotension","Angioedema (rare)"],note:"The training pack classifies fatigue as unexpected. Always confirm expectedness against the current reference safety information."}
+};
+
+const FIELD_GUIDE = [
+  {f:"Identifiable patient",req:"Yes",g:"Any of age, sex, initials or a case identifier.",s:"ICH E2D / WHO-UMC"},
+  {f:"Identifiable reporter",req:"Yes",g:"Reporter type (consumer, pharmacist, physician) is sufficient.",s:"ICH E2B(R3)"},
+  {f:"Suspect product",req:"Yes",g:"Name, plus dose and route where known.",s:"ICH E2B(R3)"},
+  {f:"Adverse event",req:"Yes",g:"At least one reaction or symptom.",s:"ICH E2B(R3)"},
+  {f:"Chronology",req:"No",g:"Time to onset strengthens causality. Record unknown if missing.",s:"WHO-UMC"},
+  {f:"Seriousness",req:"No",g:"Regulatory seriousness, not clinical severity.",s:"EU GVP Module VI"},
+  {f:"Outcome",req:"No",g:"Recovered, recovering, not recovered, fatal, unknown.",s:"ICH E2B(R3)"}
+];
+
+const SER_CRIT = [
+  ["Results in death",false],["Is life-threatening",false],["Requires or prolongs hospitalisation",true],["Results in persistent or significant disability",false],["Is a congenital anomaly / birth defect",false],["Is another medically important event",true]
+];
+
+const WHO_DEFS = [
+  {cat:"Certain",def:"Plausible time relationship; cannot be explained by disease or other drugs; response to withdrawal clinically plausible; event definitive pharmacologically or phenomenologically; rechallenge satisfactory if necessary.",band:"≥ 9",nar:"Definite (≥ 9)"},
+  {cat:"Probable",def:"Reasonable time relationship; unlikely to be attributed to disease or other drugs; clinically reasonable response on withdrawal; rechallenge not required.",band:"7 – 8",nar:"Probable (5 – 8)"},
+  {cat:"Possible",def:"Reasonable time relationship; could also be explained by disease or other drugs; information on withdrawal may be lacking or unclear.",band:"4 – 6",nar:"Possible (1 – 4)"},
+  {cat:"Unlikely",def:"Time relationship makes a causal relation improbable but not impossible; disease or other drugs provide plausible explanations.",band:"2 – 3",nar:"Doubtful (≤ 0)"},
+  {cat:"Unassessable",def:"Report suggesting an adverse reaction cannot be judged because information is insufficient or contradictory, and cannot be supplemented or verified.",band:"< 2",nar:"—"}
+];
+
+const CONCEPTS = [
+  ["Adverse drug reaction","A noxious, unintended response to a medicine at normal doses, where a causal relationship is at least a reasonable possibility."],
+  ["Adverse event","Any untoward medical occurrence after exposure to a medicine — causality not implied. Every ADR is an AE; not every AE is an ADR."],
+  ["Suspect drug","The product believed to have caused the reaction, judged by timing, pharmacology, dechallenge and rechallenge."],
+  ["Dechallenge","Withdrawing the suspect drug. Improvement after withdrawal (positive dechallenge) supports causality."],
+  ["Rechallenge","Re-exposure to the suspect drug. Recurrence (positive rechallenge) is the strongest single causality signal."],
+  ["Expectedness","Whether the reaction is listed in the reference safety information (SmPC, label, IB). Unexpected serious reactions drive expedited reporting."],
+  ["Concomitant medicines","Other drugs taken at the same time — potential alternative causes or interaction partners."],
+  ["Signal","Information suggesting a new causal association, or a new aspect of a known one, that warrants verification."]
+];
+
+const FAQ = [
+  ["How is the WHO-UMC category calculated here?","A transparent points heuristic: time to onset (≤7 days +3, ≤21 days +2, otherwise +1), labelled reaction +2, dechallenge (positive +2, unknown 0, negative or not done −1), rechallenge (positive +3, negative −1) and no reported concomitant medicines +1. The bands map to Certain, Probable, Possible, Unlikely and Unassessable. Real WHO-UMC assessment is a clinical judgement — use this as a structured starting point, not a verdict."],
+  ["Why does the Naranjo result sometimes differ?","Naranjo weighs questions differently (for example, a negative rechallenge scores −1 and unknown answers score 0) and asks about things this dataset doesn't record, such as placebo response or drug levels. Showing both makes it clear how sensitive a conclusion is to the method."],
+  ["Why are some cases flagged as inconsistent?","Several records contradict their own narrative — for example a negative dechallenge for a patient who recovered after stopping, or a positive rechallenge where the narrative never mentions re-exposure. Doses and indications that don't fit the product are flagged too. These are typical follow-up queries in case processing."],
+  ["Is a hospitalisation always caused by the drug?","No. Seriousness describes the event's consequences, not its cause. A hospitalised patient can still have an Unlikely causality assessment."],
+  ["Can I use this for real patients?","No. All cases are synthetic and the dashboard is a training aid. Real pharmacovigilance must follow your organisation's SOPs and the current product labelling."]
+];
+
+/* ═════════ HELPERS ═════════ */
+const $ = s => document.querySelector(s);
+const uniq = a => [...new Set(a)];
+const countBy = (arr,fn) => arr.reduce((m,r)=>{const k=fn(r);m[k]=(m[k]||0)+1;return m},{});
+const pct = (n,d) => d? Math.round(n/d*100):0;
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const CAUS_COLORS = {Certain:'#067647',Probable:'#0071E3',Possible:'#DC6803',Unlikely:'#D92D20',Unassessable:'#86868B'};
+const CAUS_CLASS = {Certain:'b-green',Probable:'b-blue',Possible:'b-amber',Unlikely:'b-red',Unassessable:'b-gray'};
+const NAR_CLASS = {Definite:'b-green',Probable:'b-blue',Possible:'b-amber',Doubtful:'b-gray'};
+
+/* WHO-UMC heuristic with breakdown */
+function who(r){
+  const parts=[];
+  const t = r.OnsetDays<=7?3:r.OnsetDays<=21?2:1;
+  parts.push(['Time to onset', `${r.OnsetDays} days — ${r.OnsetDays<=7?'strong temporal link (≤ 7 d)':r.OnsetDays<=21?'plausible temporal link (≤ 21 d)':'weak temporal link'}`, t]);
+  const k = r.ExpectednessReference==='Known'?2:0;
+  parts.push(['Known reaction', r.ExpectednessReference==='Known'?'Listed in reference safety information':'Not listed (unexpected)', k]);
+  const d = r.Dechallenge==='Positive'?2:r.Dechallenge==='Unknown'?0:-1;
+  parts.push(['Dechallenge', r.Dechallenge==='Positive'?'Improved on withdrawal':r.Dechallenge==='Unknown'?'Response to withdrawal unknown':'No improvement on withdrawal', d]);
+  const rc = r.Rechallenge==='Positive'?3:r.Rechallenge==='Negative'?-1:0;
+  parts.push(['Rechallenge', r.Rechallenge==='Positive'?'Reaction recurred on re-exposure':r.Rechallenge==='Negative'?'No recurrence on re-exposure':'Not performed', rc]);
+  const a = r.ConcomitantMedicines==='None reported'?1:0;
+  parts.push(['Alternative causes', r.ConcomitantMedicines==='None reported'?'No concomitant medicines reported':`Concomitant: ${r.ConcomitantMedicines}`, a]);
+  const score = parts.reduce((s,p)=>s+p[2],0);
+  return {score,parts,cat:whoCat(score)};
+}
+function whoCat(s){return s>=9?'Certain':s>=7?'Probable':s>=4?'Possible':s>=2?'Unlikely':'Unassessable'}
+
+/* Naranjo with breakdown */
+const NAR_Q = [
+  {q:"Are there previous conclusive reports on this reaction?",o:[["Yes",1],["No",0],["Don't know",0]]},
+  {q:"Did the event appear after the suspected drug was given?",o:[["Yes",2],["No",-1],["Don't know",0]]},
+  {q:"Did the reaction improve when the drug was discontinued or an antagonist given?",o:[["Yes",1],["No",0],["Don't know",0]]},
+  {q:"Did the reaction reappear when the drug was readministered?",o:[["Yes",2],["No",-1],["Don't know",0]]},
+  {q:"Are there alternative causes that could on their own have caused the reaction?",o:[["Yes",-1],["No",2],["Don't know",0]]},
+  {q:"Did the reaction reappear when a placebo was given?",o:[["Yes",-1],["No",1],["Don't know",0]]},
+  {q:"Was the drug detected in blood or other fluids in toxic concentrations?",o:[["Yes",1],["No",0],["Don't know",0]]},
+  {q:"Was the reaction more severe when the dose was increased, or less severe when decreased?",o:[["Yes",1],["No",0],["Don't know",0]]},
+  {q:"Did the patient have a similar reaction to the same or similar drugs previously?",o:[["Yes",1],["No",0],["Don't know",0]]},
+  {q:"Was the adverse event confirmed by any objective evidence?",o:[["Yes",1],["No",0],["Don't know",0]]}
+];
+function naranjoAnswers(r){
+  return [
+    r.ExpectednessReference==='Known'?0:2,
+    0,
+    r.Dechallenge==='Positive'?0:r.Dechallenge==='Negative'?1:2,
+    r.Rechallenge==='Positive'?0:r.Rechallenge==='Negative'?1:2,
+    r.ConcomitantMedicines==='None reported'?2:2,
+    2,2,2,2,2
+  ];
+}
+function naranjo(r){
+  const ans=naranjoAnswers(r);
+  const score=ans.reduce((s,a,i)=>s+NAR_Q[i].o[a][1],0);
+  return {score,ans,cat:narCat(score)};
+}
+function narCat(s){return s>=9?'Definite':s>=5?'Probable':s>=1?'Possible':'Doubtful'}
+
+/* Data-quality checks */
+function quality(r){
+  const f=[];
+  const D=DRUGS[r.SuspectProduct];
+  const mg=parseFloat(r.Dose);
+  if(D && !isNaN(mg) && (mg<D.doseRange[0]*0.5 || mg>D.doseRange[1]*1.5)){
+    f.push({sev:'High',chk:'Dose plausibility',txt:`${r.Dose} is outside the usual range for ${r.SuspectProduct} (${D.dose}).`,fu:'Confirm strength, unit and frequency with the reporter.'});
+  }
+  if(D && !D.ind.includes(r.Indication)){
+    f.push({sev:'Medium',chk:'Indication fit',txt:`${r.Indication} is not a usual indication for ${r.SuspectProduct}.`,fu:'Verify the indication; consider off-label use or a transcription error.'});
+  }
+  if(r.Dechallenge==='Negative' && (r.Outcome==='Recovered'||r.Outcome==='Recovering')){
+    f.push({sev:'High',chk:'Dechallenge vs outcome',txt:`Dechallenge recorded as negative, but the narrative says the patient ${r.Outcome.toLowerCase()} after stopping.`,fu:'Clarify whether improvement followed withdrawal.'});
+  }
+  if(r.Dechallenge==='Positive' && r.Outcome==='Not recovered'){
+    f.push({sev:'High',chk:'Dechallenge vs outcome',txt:'Dechallenge recorded as positive, but the patient had not recovered at follow-up.',fu:'Clarify the course of the reaction after withdrawal.'});
+  }
+  if(r.Rechallenge==='Positive' || r.Rechallenge==='Negative'){
+    f.push({sev:'Medium',chk:'Rechallenge documentation',txt:`Rechallenge is ${r.Rechallenge.toLowerCase()}, but the narrative only mentions treatment being stopped.`,fu:'Request date, dose and result of re-exposure.'});
+  }
+  if(r.Sex==='Unknown'){
+    f.push({sev:'Low',chk:'Patient sex',txt:'Sex not reported — patient remains identifiable by age.',fu:'Request sex at follow-up; keep as unknown until confirmed.'});
+  }
+  if(r.Seriousness==='Not serious' && r.Outcome==='Not recovered'){
+    f.push({sev:'Low',chk:'Seriousness review',txt:'Non-serious event that had not resolved at follow-up.',fu:'Reassess for persistent disability or medical importance.'});
+  }
+  if(r.Reporter==='Consumer' && r.Seriousness!=='Not serious'){
+    f.push({sev:'Low',chk:'Medical confirmation',txt:'Serious event reported by a consumer without healthcare-professional confirmation.',fu:'Seek medical confirmation from the treating physician.'});
+  }
+  return f;
+}
+
+/* ═════════ PRECOMPUTE ═════════ */
+RAW.forEach(r=>{ r._who=who(r); r._nar=naranjo(r); r._q=quality(r); r._serious=r.Seriousness!=='Not serious'; });
+const ALL_DRUGS = uniq(RAW.map(r=>r.SuspectProduct)).sort();
+
+/* ═════════ BADGES ═════════ */
+const serBadge = s => s==='Hospitalisation'?`<span class="badge b-red">Hospitalisation</span>`:s==='Medically important'?`<span class="badge b-amber">Medically important</span>`:`<span class="badge b-green">Not serious</span>`;
+const expBadge = e => e==='Known'?`<span class="badge b-gray">Known</span>`:`<span class="badge b-violet">Unexpected</span>`;
+const chBadge = v => v==='Positive'?`<span class="badge b-blue">Positive</span>`:v==='Negative'?`<span class="badge b-gray">Negative</span>`:`<span class="badge b-gray nodot" style="opacity:.75">${esc(v)}</span>`;
+const outBadge = o => o==='Recovered'?`<span class="badge b-green">Recovered</span>`:o==='Recovering'?`<span class="badge b-blue">Recovering</span>`:`<span class="badge b-red">Not recovered</span>`;
+const causBadge = c => `<span class="badge ${CAUS_CLASS[c]}">${c}</span>`;
+const narBadge = n => `<span class="badge ${NAR_CLASS[n.cat]}">${n.cat} · ${n.score}</span>`;
+const sevBadge = s => s==='High'?`<span class="badge b-red">High</span>`:s==='Medium'?`<span class="badge b-amber">Medium</span>`:`<span class="badge b-gray">Low</span>`;
+
+/* ═════════ HERO + KPIs + INSIGHTS ═════════ */
+function renderHero(){
+  const r = RAW.find(x=>x.CaseID==='SYN-PV-013');
+  $('#heroCard').innerHTML = `
+    <div class="hc-top"><span class="hc-id">${r.CaseID} · featured case</span>${serBadge(r.Seriousness)}</div>
+    <div class="hc-title">${r.SuspectProduct} → ${r.Reaction}</div>
+    <div class="hc-sub">${r.Age}-year-old ${r.Sex.toLowerCase()} · ${r.Dose} · reported by ${r.Reporter.toLowerCase()}</div>
+    <div class="hc-facts">
+      <div class="hc-fact"><b>Day ${r.OnsetDays}</b><span>Onset</span></div>
+      <div class="hc-fact"><b>${r.Rechallenge}</b><span>Rechallenge</span></div>
+      <div class="hc-fact"><b>${r.Outcome}</b><span>Outcome</span></div>
+    </div>
+    ${miniTimeline(r)}
+    <div class="hc-foot"><div style="display:flex;gap:6px">${causBadge(r._who.cat)}${narBadge(r._nar)}</div><button class="btn-link" onclick="openCase('${r.CaseID}')">Open case →</button></div>`;
+}
+
+function renderKPIs(){
+  const n=RAW.length, ser=RAW.filter(r=>r._serious).length, hosp=RAW.filter(r=>r.Seriousness==='Hospitalisation').length;
+  const unexp=RAW.filter(r=>r.ExpectednessReference==='Unexpected').length, rech=RAW.filter(r=>r.Rechallenge==='Positive').length;
+  const avg=(RAW.reduce((s,r)=>s+r.OnsetDays,0)/n).toFixed(1), notrec=RAW.filter(r=>r.Outcome==='Not recovered').length;
+  const strong=RAW.filter(r=>['Certain','Probable'].includes(r._who.cat)).length;
+  const k=[
+    ['Case reports',n,'Synthetic, de-identified',100,'#0071E3'],
+    ['Serious events',ser,`${pct(ser,n)}% meet ICH E2A criteria`,pct(ser,n),'#D92D20'],
+    ['Hospitalisations',hosp,`${pct(hosp,n)}% of all cases`,pct(hosp,n),'#D92D20'],
+    ['Unexpected reactions',unexp,'Not in reference labelling',pct(unexp,n),'#6941C6'],
+    ['Positive rechallenges',rech,'Strongest causal signal',pct(rech,n),'#0071E3'],
+    ['Certain / probable',strong,'WHO-UMC heuristic',pct(strong,n),'#067647'],
+    ['Mean time to onset',avg+' d',`Range ${Math.min(...RAW.map(r=>r.OnsetDays))}–${Math.max(...RAW.map(r=>r.OnsetDays))} days`,Math.round(avg/21*100),'#0071E3'],
+    ['Not recovered',notrec,'At last follow-up',pct(notrec,n),'#DC6803']
+  ];
+  $('#kpis').innerHTML = k.map(([l,v,s,p,c])=>`<div class="kpi"><div class="k-label">${l}</div><div class="k-val">${v}</div><div class="k-sub">${s}</div><div class="k-bar"><i style="width:${p}%;background:${c}"></i></div></div>`).join('');
+
+  const byDrugSer = ALL_DRUGS.map(d=>[d,RAW.filter(r=>r.SuspectProduct===d&&r._serious).length,RAW.filter(r=>r.SuspectProduct===d).length]).sort((a,b)=>b[1]-a[1]);
+  const flags = RAW.reduce((s,r)=>s+r._q.filter(f=>f.sev==='High').length,0);
+  const fast = RAW.filter(r=>r.OnsetDays<=7);
+  const ins=[
+    ['📈','#E8F1FC',`${byDrugSer[0][0]} and ${byDrugSer[1][0]} lead serious reports`,`${byDrugSer[0][1]} of ${byDrugSer[0][2]} and ${byDrugSer[1][1]} of ${byDrugSer[1][2]} cases respectively were serious. All other products sit at ${byDrugSer.slice(2).map(x=>x[1]).join(', ')}.`],
+    ['⏱️','#ECFDF3',`${fast.length} reactions appeared within a week`,`${fast.map(r=>r.SuspectProduct+' ('+r.OnsetDays+' d)').join(', ')}. Short latency strengthens the temporal criterion.`],
+    ['⚠️','#FFFAEB',`${flags} high-priority data conflicts`,`Implausible doses and dechallenge results that contradict the narrative need follow-up before final causality can be confirmed.`],
+    ['🔁','#F4F3FF',`${rech} positive rechallenges, none documented`,`Rechallenge is the strongest signal — yet no narrative describes re-exposure. Treat these results with caution until verified.`],
+    ['🏷️','#F2F4F7',`Only Losartan fatigue is unexpected`,`Both unexpected reports are non-serious, so none would qualify as a SUSAR-type expedited report in this set.`],
+    ['🧑‍⚕️','#FEF3F2',`${RAW.filter(r=>r.Sex==='Unknown').length} patients have unknown sex`,`They remain valid cases (age identifies the patient). Keep unknowns unknown rather than inferring from the narrative.`]
+  ];
+  $('#insights').innerHTML = ins.map(([i,bg,t,p])=>`<div class="insight"><div class="i-ico" style="background:${bg}">${i}</div><h4>${t}</h4><p>${p}</p></div>`).join('');
+}
+
+function miniTimeline(r){
+  const max=24, p=v=>Math.min(100,v/max*100);
+  return `<div class="mini-tl" title="Onset day ${r.OnsetDays}">
+    <div class="line"></div><div class="fill" style="width:${p(r.OnsetDays)}%"></div>
+    <div class="pt" style="left:0%;transform:none"></div>
+    <div class="pt" style="left:${p(r.OnsetDays)}%;border-color:${r._serious?'#D92D20':'#0071E3'}"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:-6px"><span>Day 0 · first dose</span><span>Day ${r.OnsetDays} · ${esc(r.Reaction)}</span></div>`;
+}
+
+/* ═════════ CASE EXPLORER ═════════ */
+let view='table', sortCol='CaseID', sortAsc=true, serFilter='', filtered=[...RAW];
+const COLS=[
+  ['CaseID','Case',1],['Age','Patient',1],['SuspectProduct','Suspect drug',1],['Indication','Indication',0],['Reaction','Reaction',1],['OnsetDays','Onset',1],
+  ['Seriousness','Seriousness',1],['ExpectednessReference','Expectedness',0],['Dechallenge','Dechallenge',0],['Rechallenge','Rechallenge',0],['Outcome','Outcome',1],['_who','WHO-UMC',1],['_nar','Naranjo',1],['Reporter','Reporter',1]
+];
+
+function initFilters(){
+  const fill=(id,vals)=>{const el=$(id);vals.forEach(v=>el.insertAdjacentHTML('beforeend',`<option>${esc(v)}</option>`))};
+  fill('#fDrug',ALL_DRUGS);
+  fill('#fExp',uniq(RAW.map(r=>r.ExpectednessReference)).sort());
+  fill('#fRep',uniq(RAW.map(r=>r.Reporter)).sort());
+  fill('#fCaus',['Certain','Probable','Possible','Unlikely','Unassessable'].filter(c=>RAW.some(r=>r._who.cat===c)));
+  RAW.forEach(r=>$('#prefillSel').insertAdjacentHTML('beforeend',`<option value="${r.CaseID}">${r.CaseID} — ${r.SuspectProduct} / ${r.Reaction}</option>`));
+  renderSerChips();
+  $('#thead').innerHTML = COLS.map(([k,l,s])=>`<th class="${s?'sortable':''}" data-k="${k}" ${s?`onclick="sortBy('${k}')"`:''}>${l}${s?'<span class="arr">↕</span>':''}</th>`).join('');
+}
+function renderSerChips(){
+  const c=countBy(RAW,r=>r.Seriousness);
+  const opts=[['','All',RAW.length],...['Hospitalisation','Medically important','Not serious'].map(s=>[s,s,c[s]||0])];
+  $('#serChips').innerHTML=opts.map(([v,l,n])=>`<button class="chip ${serFilter===v?'on':''}" onclick="serFilter='${v}';renderSerChips();applyFilters()">${l} <span class="n">${n}</span></button>`).join('');
+}
+function sortVal(r,k){return k==='_who'?r._who.score:k==='_nar'?r._nar.score:r[k]}
+function sortBy(k){ if(sortCol===k) sortAsc=!sortAsc; else {sortCol=k;sortAsc=true;} applyFilters(); }
+function applyFilters(){
+  const q=$('#q').value.trim().toLowerCase(), d=$('#fDrug').value, e=$('#fExp').value, rp=$('#fRep').value, c=$('#fCaus').value;
+  filtered = RAW.filter(r=>{
+    const hay=[r.CaseID,r.SuspectProduct,r.Reaction,r.Indication,r.Reporter,r.ConcomitantMedicines,r.Sex,r.Dose,r.Outcome,r.Seriousness].join(' ').toLowerCase();
+    return (!q||hay.includes(q))&&(!d||r.SuspectProduct===d)&&(!e||r.ExpectednessReference===e)&&(!rp||r.Reporter===rp)&&(!c||r._who.cat===c)&&(!serFilter||r.Seriousness===serFilter);
+  }).sort((a,b)=>{const va=sortVal(a,sortCol),vb=sortVal(b,sortCol);const r=typeof va==='number'?va-vb:String(va).localeCompare(String(vb));return sortAsc?r:-r});
+  document.querySelectorAll('#thead th').forEach(th=>{th.classList.toggle('sorted',th.dataset.k===sortCol);const a=th.querySelector('.arr');if(a)a.textContent=th.dataset.k===sortCol?(sortAsc?'↑':'↓'):'↕'});
+  $('#resultCount').textContent=`${filtered.length} of ${RAW.length} cases`;
+  renderTable(); renderCards();
+}
+function clearFilters(){['#q','#fDrug','#fExp','#fRep','#fCaus'].forEach(s=>$(s).value='');serFilter='';sortCol='CaseID';sortAsc=true;renderSerChips();applyFilters()}
+function setView(v){view=v;$('#viewTable').classList.toggle('on',v==='table');$('#viewCards').classList.toggle('on',v==='cards');$('#tableView').style.display=v==='table'?'':'none';$('#cardView').style.display=v==='cards'?'':'none'}
+
+function renderTable(){
+  if(!filtered.length){$('#tbody').innerHTML=`<tr><td colspan="${COLS.length}" class="empty">No cases match these filters.</td></tr>`;return}
+  $('#tbody').innerHTML = filtered.map(r=>`<tr class="clickable" onclick="openCase('${r.CaseID}')">
+    <td><span class="cid">${r.CaseID}</span></td>
+    <td>${r.Age} y<div class="td-sub">${r.Sex}</div></td>
+    <td><b>${r.SuspectProduct}</b><div class="td-sub">${esc(r.Dose)} · ${r.Route}</div></td>
+    <td>${r.Indication}</td>
+    <td><b style="font-weight:500">${r.Reaction}</b></td>
+    <td><span class="onset"><span class="onset-bar"><i style="width:${r.OnsetDays/21*100}%"></i></span>${r.OnsetDays} d</span></td>
+    <td>${serBadge(r.Seriousness)}</td>
+    <td>${expBadge(r.ExpectednessReference)}</td>
+    <td>${chBadge(r.Dechallenge)}</td>
+    <td>${chBadge(r.Rechallenge)}</td>
+    <td>${outBadge(r.Outcome)}</td>
+    <td>${causBadge(r._who.cat)}</td>
+    <td>${narBadge(r._nar)}</td>
+    <td>${r.Reporter}</td>
+  </tr>`).join('');
+}
+function renderCards(){
+  $('#cardView').innerHTML = filtered.length? filtered.map(r=>`<div class="case-card" onclick="openCase('${r.CaseID}')" tabindex="0" onkeydown="if(event.key==='Enter')openCase('${r.CaseID}')">
+    <div class="cc-top"><span class="cid">${r.CaseID}</span>${serBadge(r.Seriousness)}</div>
+    <div><div class="cc-title">${r.SuspectProduct} → ${r.Reaction}</div><div class="cc-sub">${r.Age} y · ${r.Sex} · ${esc(r.Dose)} · for ${r.Indication.toLowerCase()}</div></div>
+    ${miniTimeline(r)}
+    <div class="cc-meta">${causBadge(r._who.cat)}${outBadge(r.Outcome)}${r._q.some(f=>f.sev==='High')?'<span class="badge b-amber nodot">⚑ Needs follow-up</span>':''}</div>
+  </div>`).join('') : `<div class="empty" style="grid-column:1/-1">No cases match these filters.</div>`;
+}
+
+/* ═════════ MODAL ═════════ */
+let currentId=null;
+function openCase(id){
+  const r=RAW.find(x=>x.CaseID===id); if(!r) return; currentId=id;
+  const D=DRUGS[r.SuspectProduct], idx=filtered.findIndex(x=>x.CaseID===id), list=idx>=0?filtered:RAW, i=list.findIndex(x=>x.CaseID===id);
+  const prev=list[i-1], next=list[i+1];
+  const max=Math.max(r.OnsetDays+6,24), p=v=>v/max*100;
+  const serCrit=SER_CRIT.map(([c])=>{const met=(c.startsWith('Requires')&&r.Seriousness==='Hospitalisation')||(c.startsWith('Is another')&&r.Seriousness==='Medically important');return `<div class="check"><span class="ci ${met?'x':'n'}">${met?'✓':'–'}</span><span style="${met?'font-weight:600':''}">${c}</span></div>`}).join('');
+  const valid=[['Identifiable patient',`${r.Age} years, sex ${r.Sex.toLowerCase()}`],['Identifiable reporter',r.Reporter],['Suspect product',`${r.SuspectProduct} ${r.Dose}, ${r.Route.toLowerCase()}`],['Adverse event',r.Reaction]];
+  $('#modal').innerHTML = `
+  <div class="m-head">
+    <div>
+      <div class="cid" style="margin-bottom:6px">${r.CaseID}</div>
+      <h2 id="mTitle">${r.SuspectProduct} → ${r.Reaction}</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${serBadge(r.Seriousness)}${expBadge(r.ExpectednessReference)}${outBadge(r.Outcome)}${causBadge(r._who.cat)}${narBadge(r._nar)}</div>
+    </div>
+    <button class="m-close" onclick="closeCase()" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="m-body">
+    <div class="m-grid">
+      <div class="fact"><div class="f-l">Patient</div><div class="f-v">${r.Age} years · ${r.Sex}</div></div>
+      <div class="fact"><div class="f-l">Suspect product</div><div class="f-v">${r.SuspectProduct}</div></div>
+      <div class="fact"><div class="f-l">Dose · route</div><div class="f-v">${esc(r.Dose)} · ${r.Route}</div></div>
+      <div class="fact"><div class="f-l">Indication</div><div class="f-v">${r.Indication}</div></div>
+      <div class="fact"><div class="f-l">Concomitant medicines</div><div class="f-v">${r.ConcomitantMedicines}</div></div>
+      <div class="fact"><div class="f-l">Reporter</div><div class="f-v">${r.Reporter}</div></div>
+    </div>
+
+    <div class="m-sec"><h4>Case narrative</h4><div class="narr">${esc(r.Narrative)}</div></div>
+
+    <div class="m-sec"><h4>Timeline</h4>
+      <div class="tl">
+        <div class="tl-line"></div><div class="tl-fill" style="width:calc(${p(r.OnsetDays)}% - 12px)"></div>
+        <div class="tl-pts">
+          <div class="tl-pt"><span class="o"></span><b>Day 0</b><span>${r.SuspectProduct} started</span></div>
+          <div class="tl-pt"><span class="o red"></span><b>Day ${r.OnsetDays}</b><span>${r.Reaction} reported</span></div>
+          <div class="tl-pt"><span class="o gray"></span><b>Withdrawn</b><span>Dechallenge ${r.Dechallenge.toLowerCase()}</span></div>
+          <div class="tl-pt"><span class="o gray"></span><b>Re-exposure</b><span>Rechallenge ${r.Rechallenge.toLowerCase()}</span></div>
+          <div class="tl-pt"><span class="o ${r.Outcome==='Not recovered'?'red':'green'}"></span><b>Follow-up</b><span>${r.Outcome}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="m-sec two">
+      <div><h4>WHO-UMC heuristic — ${r._who.cat}</h4>
+        <table class="crit">${r._who.parts.map(([c,t,s])=>`<tr><td><b style="font-weight:500">${c}</b><div class="td-sub">${esc(t)}</div></td><td style="color:${s>0?'var(--green)':s<0?'var(--red)':'var(--muted)'}">${s>0?'+':''}${s}</td></tr>`).join('')}
+        <tr class="total"><td>Total → ${r._who.cat}</td><td>${r._who.score}</td></tr></table>
+      </div>
+      <div><h4>Naranjo — ${r._nar.cat}</h4>
+        <table class="crit">${NAR_Q.map((q,i)=>{const o=q.o[r._nar.ans[i]];return `<tr><td>${q.q}<div class="td-sub">${o[0]}</div></td><td style="color:${o[1]>0?'var(--green)':o[1]<0?'var(--red)':'var(--muted)'}">${o[1]>0?'+':''}${o[1]}</td></tr>`}).join('')}
+        <tr class="total"><td>Total → ${r._nar.cat}</td><td>${r._nar.score}</td></tr></table>
+      </div>
+    </div>
+
+    <div class="m-sec two">
+      <div><h4>Seriousness criteria (ICH E2A)</h4><div class="checks">${serCrit}</div>
+        ${r.Seriousness==='Not serious'?'<div class="callout ok" style="margin-top:12px">No seriousness criterion met — routine (non-expedited) reporting.</div>':''}
+      </div>
+      <div><h4>Minimum case validity</h4><div class="checks">${valid.map(([l,v])=>`<div class="check"><span class="ci y">✓</span><span><b style="font-weight:500">${l}</b> — <span class="muted">${esc(v)}</span></span></div>`).join('')}</div>
+        <div class="callout ok" style="margin-top:12px">All four minimum criteria present — valid ICSR.</div>
+      </div>
+    </div>
+
+    <div class="m-sec"><h4>Data-quality flags (${r._q.length})</h4>
+      ${r._q.length? `<div class="checks">${r._q.map(f=>`<div class="check"><span class="ci ${f.sev==='High'?'x':f.sev==='Medium'?'w':'n'}">!</span><span><b style="font-weight:500">${f.chk}.</b> ${esc(f.txt)} <span class="muted">→ ${esc(f.fu)}</span></span></div>`).join('')}</div>` : '<div class="callout ok">No issues detected.</div>'}
+    </div>
+
+    <div class="m-sec"><h4>Drug reference — ${r.SuspectProduct}</h4>
+      <dl class="dl">
+        <dt>Class</dt><dd>${D.cls}</dd>
+        <dt>Mechanism</dt><dd>${D.moa}</dd>
+        <dt>Usual adult dose</dt><dd>${D.dose}</dd>
+        <dt>Typical indications</dt><dd>${D.indText}</dd>
+        <dt>Labelled reactions</dt><dd><div class="tag-list">${D.adrs.map(a=>`<span class="badge nodot ${a.toLowerCase().startsWith(r.Reaction.toLowerCase().split(' ')[0])?'b-blue':''}">${a}</span>`).join('')}</div></dd>
+        <dt>Clinical note</dt><dd class="muted">${D.note}</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="m-foot">
+    <button class="btn btn-ghost btn-sm" ${prev?`onclick="openCase('${prev.CaseID}')"`:'disabled style="opacity:.4"'}>← ${prev?prev.CaseID:'Previous'}</button>
+    <span class="small muted">${i+1} of ${list.length}</span>
+    <button class="btn btn-ghost btn-sm" ${next?`onclick="openCase('${next.CaseID}')"`:'disabled style="opacity:.4"'}>${next?next.CaseID:'Next'} →</button>
+  </div>`;
+  $('#backdrop').classList.add('open'); document.body.style.overflow='hidden';
+  $('#backdrop').scrollTop=0;
+}
+function closeCase(){$('#backdrop').classList.remove('open');document.body.style.overflow='';currentId=null}
+document.addEventListener('keydown',e=>{
+  if(!currentId) return;
+  if(e.key==='Escape') closeCase();
+  const list=filtered.some(x=>x.CaseID===currentId)?filtered:RAW, i=list.findIndex(x=>x.CaseID===currentId);
+  if(e.key==='ArrowRight'&&list[i+1]) openCase(list[i+1].CaseID);
+  if(e.key==='ArrowLeft'&&list[i-1]) openCase(list[i-1].CaseID);
+});
+
+/* ═════════ CHARTS ═════════ */
+function buildCharts(){
+  if(typeof Chart==='undefined') return;
+  Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
+  Chart.defaults.font.size=12; Chart.defaults.color='#6E6E73';
+  Chart.defaults.plugins.legend.labels.usePointStyle=true; Chart.defaults.plugins.legend.labels.boxWidth=8;
+  Chart.defaults.plugins.tooltip.backgroundColor='#1D1D1F'; Chart.defaults.plugins.tooltip.padding=10; Chart.defaults.plugins.tooltip.cornerRadius=8;
+  Chart.defaults.maintainAspectRatio=false;
+  const grid={color:'#F0F0F3'}, noGrid={display:false};
+  const BLUE='#0071E3', BL2='#7DB6F5', BL3='#C7DFFA';
+
+  new Chart('cOnsetCase',{type:'bar',data:{labels:RAW.map(r=>r.CaseID.replace('SYN-PV-','#')),datasets:[{label:'Onset (days)',data:RAW.map(r=>r.OnsetDays),backgroundColor:RAW.map(r=>CAUS_COLORS[r._who.cat]),borderRadius:6,maxBarThickness:28}]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>RAW[i[0].dataIndex].CaseID,label:i=>{const r=RAW[i.dataIndex];return [`${r.SuspectProduct} → ${r.Reaction}`,`Onset day ${r.OnsetDays}`,`WHO-UMC: ${r._who.cat}`]}}}},scales:{x:{grid:noGrid},y:{grid,beginAtZero:true,title:{display:true,text:'Days'}}},onClick:(e,el)=>{if(el[0])openCase(RAW[el[0].index].CaseID)}}});
+
+  const ser=countBy(RAW,r=>r.Seriousness), serK=['Hospitalisation','Medically important','Not serious'];
+  new Chart('cSer',{type:'doughnut',data:{labels:serK,datasets:[{data:serK.map(k=>ser[k]||0),backgroundColor:['#D92D20','#F79009','#12B76A'],borderWidth:3,borderColor:'#fff'}]},options:{cutout:'68%',plugins:{legend:{position:'bottom'}}}});
+
+  const b={'0–7 d':0,'8–14 d':0,'15–21 d':0}; RAW.forEach(r=>{b[r.OnsetDays<=7?'0–7 d':r.OnsetDays<=14?'8–14 d':'15–21 d']++});
+  new Chart('cOnset',{type:'bar',data:{labels:Object.keys(b),datasets:[{data:Object.values(b),backgroundColor:[BLUE,BL2,BL3],borderRadius:8,maxBarThickness:56}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:noGrid},y:{grid,beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  const rep=countBy(RAW,r=>r.Reporter);
+  new Chart('cRep',{type:'doughnut',data:{labels:Object.keys(rep),datasets:[{data:Object.values(rep),backgroundColor:[BLUE,'#6941C6','#98A2B3'],borderWidth:3,borderColor:'#fff'}]},options:{cutout:'64%',plugins:{legend:{position:'bottom'}}}});
+
+  const out=countBy(RAW,r=>r.Outcome), outK=['Recovered','Recovering','Not recovered'];
+  new Chart('cOut',{type:'bar',data:{labels:outK,datasets:[{data:outK.map(k=>out[k]||0),backgroundColor:['#12B76A',BL2,'#F04438'],borderRadius:8,maxBarThickness:56}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid,beginAtZero:true,ticks:{stepSize:1}},y:{grid:noGrid}}}});
+
+  const vals=['Positive','Negative','Unknown','Not done'];
+  new Chart('cDR',{type:'bar',data:{labels:vals,datasets:[{label:'Dechallenge',data:vals.map(v=>RAW.filter(r=>r.Dechallenge===v).length),backgroundColor:BLUE,borderRadius:6},{label:'Rechallenge',data:vals.map(v=>RAW.filter(r=>r.Rechallenge===v).length),backgroundColor:BL3,borderRadius:6}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{grid:noGrid},y:{grid,beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  const sc=s=>RAW.filter(r=>r.Sex===s).map(r=>({x:r.Age,y:r.OnsetDays,id:r.CaseID}));
+  new Chart('cScatter',{type:'scatter',data:{datasets:[{label:'Female',data:sc('Female'),backgroundColor:'#6941C6',pointRadius:6},{label:'Male',data:sc('Male'),backgroundColor:BLUE,pointRadius:6},{label:'Unknown',data:sc('Unknown'),backgroundColor:'#98A2B3',pointRadius:6,pointStyle:'rect'}]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:i=>`${i.raw.id}: ${i.raw.x} y, day ${i.raw.y}`}}},scales:{x:{grid,title:{display:true,text:'Age (years)'}},y:{grid,title:{display:true,text:'Onset (days)'},beginAtZero:true}}}});
+
+  const wc=countBy(RAW,r=>r._who.cat), nc=countBy(RAW,r=>r._nar.cat);
+  const lab=['Certain / Definite','Probable','Possible','Unlikely / Doubtful','Unassessable'];
+  new Chart('cCaus',{type:'bar',data:{labels:lab,datasets:[{label:'WHO-UMC',data:[wc.Certain||0,wc.Probable||0,wc.Possible||0,wc.Unlikely||0,wc.Unassessable||0],backgroundColor:BLUE,borderRadius:6},{label:'Naranjo',data:[nc.Definite||0,nc.Probable||0,nc.Possible||0,nc.Doubtful||0,0],backgroundColor:'#B692F6',borderRadius:6}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{grid:noGrid,ticks:{font:{size:10}}},y:{grid,beginAtZero:true,ticks:{stepSize:2}}}}});
+}
+
+function renderHeat(){
+  const cols=['Hospitalisation','Medically important','Not serious'];
+  const rows=ALL_DRUGS.map(d=>cols.map(c=>RAW.filter(r=>r.SuspectProduct===d&&r.Seriousness===c).length));
+  const max=Math.max(...rows.flat());
+  const colr=(v,c)=>{if(!v)return 'background:#F7F7F9;color:#C7C7CC';const a=.18+.6*v/max;const base=c===0?'217,45,32':c===1?'247,144,9':'18,183,106';return `background:rgba(${base},${a});color:${a>.5?'#fff':'#1D1D1F'}`};
+  $('#heat').innerHTML=`<tr><th></th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr>`+
+    ALL_DRUGS.map((d,i)=>`<tr><th class="row">${d}</th>${rows[i].map((v,c)=>`<td style="${colr(v,c)}">${v||'·'}</td>`).join('')}<td style="background:var(--surface)">${rows[i].reduce((a,b)=>a+b,0)}</td></tr>`).join('');
+}
+function renderDemo(){
+  const bands=[['18–34',r=>r.Age<35],['35–49',r=>r.Age>=35&&r.Age<50],['50–64',r=>r.Age>=50&&r.Age<65],['65+',r=>r.Age>=65]];
+  const sex=countBy(RAW,r=>r.Sex);
+  const rows=[...bands.map(([l,f])=>[`Age ${l}`,RAW.filter(f).length,'#0071E3']),...['Female','Male','Unknown'].map(s=>[`Sex: ${s}`,sex[s]||0,s==='Female'?'#6941C6':s==='Male'?'#0071E3':'#98A2B3'])];
+  $('#demo').innerHTML=rows.map(([l,n,c],i)=>`${i===4?'<div style="height:10px"></div>':''}<div class="bar-row"><span>${l}</span><div class="bar-track"><i style="width:${n/RAW.length*100*2}%;background:${c}"></i></div><span class="bar-n">${n}</span></div>`).join('')+`<p class="small muted" style="margin-top:10px">Median age ${median(RAW.map(r=>r.Age))} years · ${RAW.filter(r=>r.Age>=65).length} patients aged 65+</p>`;
+}
+const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+
+/* ═════════ DRUGS ═════════ */
+let activeDrug=null;
+function renderDrugs(){
+  $('#drugGrid').innerHTML=ALL_DRUGS.map(d=>{const c=RAW.filter(r=>r.SuspectProduct===d);return `<button class="drug ${activeDrug===d?'on':''}" onclick="showDrug('${d}')">
+    <div class="d-name">${d}</div><div class="d-class">${DRUGS[d].cls}</div>
+    <div class="d-stats"><span><b>${c.length}</b>cases</span><span><b>${c.filter(r=>r._serious).length}</b>serious</span><span><b>${(c.reduce((s,r)=>s+r.OnsetDays,0)/c.length).toFixed(0)} d</b>avg onset</span></div>
+  </button>`}).join('');
+}
+function showDrug(d){
+  activeDrug=activeDrug===d?null:d; renderDrugs();
+  const el=$('#drugDetail'); if(!activeDrug){el.classList.remove('show');return}
+  const D=DRUGS[d], c=RAW.filter(r=>r.SuspectProduct===d);
+  const rx=uniq(c.map(r=>r.Reaction)).join(', ');
+  el.innerHTML=`<div class="dd-grid">
+    <div>
+      <div class="eyebrow">${D.cls}</div>
+      <h2 class="title" style="font-size:34px;margin-bottom:18px">${d}</h2>
+      <dl class="dl">
+        <dt>Mechanism</dt><dd>${D.moa}</dd>
+        <dt>Usual adult dose</dt><dd>${D.dose}</dd>
+        <dt>Typical indications</dt><dd>${D.indText}</dd>
+        <dt>Labelled reactions</dt><dd><div class="tag-list">${D.adrs.map(a=>`<span class="badge nodot">${a}</span>`).join('')}</div></dd>
+      </dl>
+      <div class="callout info" style="margin-top:20px"><span>💡</span><span>${D.note}</span></div>
+    </div>
+    <div>
+      <div class="m-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px">
+        <div class="fact"><div class="f-l">Reports in dataset</div><div class="f-v">${c.length}</div></div>
+        <div class="fact"><div class="f-l">Reaction(s)</div><div class="f-v">${rx}</div></div>
+        <div class="fact"><div class="f-l">Serious</div><div class="f-v">${c.filter(r=>r._serious).length} of ${c.length}</div></div>
+        <div class="fact"><div class="f-l">Onset range</div><div class="f-v">${Math.min(...c.map(r=>r.OnsetDays))}–${Math.max(...c.map(r=>r.OnsetDays))} days</div></div>
+      </div>
+      <h4 style="margin-bottom:10px">Cases</h4>
+      <div class="checks">${c.map(r=>`<div class="check" style="cursor:pointer;padding:10px 12px;background:var(--surface);border-radius:10px;align-items:center" onclick="openCase('${r.CaseID}')"><span class="cid">${r.CaseID}</span><span style="flex:1">${r.Age} y ${r.Sex.toLowerCase()} · day ${r.OnsetDays} · ${esc(r.Dose)}</span>${causBadge(r._who.cat)}</div>`).join('')}</div>
+    </div>
+  </div>`;
+  el.classList.add('show'); el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ═════════ CAUSALITY TOOLS ═════════ */
+const WHO_Q=[
+  {k:'time',q:'Time from first dose to onset',o:[['≤ 7 days',3],['8–21 days',2],['> 21 days',1]]},
+  {k:'known',q:'Is the reaction listed in the reference labelling?',o:[['Yes, known',2],['No, unexpected',0]]},
+  {k:'dech',q:'Response when the drug was withdrawn (dechallenge)',o:[['Improved',2],['Unknown',0],['No improvement / not done',-1]]},
+  {k:'rech',q:'Response on re-exposure (rechallenge)',o:[['Recurred',3],['Not done / unknown',0],['Did not recur',-1]]},
+  {k:'alt',q:'Concomitant medicines that could explain it?',o:[['None reported',1],['Yes, present',0]]}
+];
+let whoAns={}, narAns={};
+function renderTools(){
+  $('#whoQs').innerHTML=WHO_Q.map((q,i)=>`<div class="q"><div class="q-text"><span class="q-num">${i+1}</span>${q.q}</div><div class="opts">${q.o.map(([l,v],j)=>`<button class="opt ${whoAns[q.k]===j?'on':''}" onclick="whoAns['${q.k}']=${j};renderTools()">${l}<span class="pts">${v>0?'+':''}${v}</span></button>`).join('')}</div></div>`).join('');
+  $('#narQs').innerHTML=NAR_Q.map((q,i)=>`<div class="q"><div class="q-text"><span class="q-num">${i+1}</span>${q.q}</div><div class="opts">${q.o.map(([l,v],j)=>`<button class="opt ${narAns[i]===j?'on':''}" onclick="narAns[${i}]=${j};renderTools()">${l}<span class="pts">${v>0?'+':''}${v}</span></button>`).join('')}</div></div>`).join('');
+  const wn=Object.keys(whoAns).length, ws=WHO_Q.reduce((s,q)=>s+(whoAns[q.k]!=null?q.o[whoAns[q.k]][1]:0),0), wc=whoCat(ws);
+  $('#whoRes').innerHTML = wn? `${gauge(Math.max(0,ws)/11,CAUS_COLORS[wc])}<div><div class="r-score">${wn}/${WHO_Q.length} answered · score ${ws} of 11</div><div class="r-cat" style="color:${CAUS_COLORS[wc]}">${wc}</div><div class="small muted">${WHO_DEFS.find(d=>d.cat===wc).def}</div></div>` : `<div class="small muted">Select an answer for each question to see the category.</div>`;
+  const nn=Object.keys(narAns).length, ns=NAR_Q.reduce((s,q,i)=>s+(narAns[i]!=null?q.o[narAns[i]][1]:0),0), nc=narCat(ns);
+  const ncol={Definite:'#067647',Probable:'#0071E3',Possible:'#DC6803',Doubtful:'#86868B'}[nc];
+  const ndesc={Definite:'The reaction is definitely related to the drug.',Probable:'The reaction is probably related to the drug.',Possible:'The reaction is possibly related to the drug.',Doubtful:'The relationship to the drug is doubtful.'}[nc];
+  $('#narRes').innerHTML = nn? `${gauge((ns+4)/17,ncol)}<div><div class="r-score">${nn}/10 answered · score ${ns} (range −4 to 13)</div><div class="r-cat" style="color:${ncol}">${nc}</div><div class="small muted">${ndesc}</div></div>` : `<div class="small muted">Answer the questions to calculate the Naranjo score.</div>`;
+}
+function gauge(f,c){f=Math.max(0,Math.min(1,f));const C=2*Math.PI*30;return `<svg class="gauge" viewBox="0 0 76 76"><circle cx="38" cy="38" r="30" fill="none" stroke="#E8E8ED" stroke-width="8"/><circle cx="38" cy="38" r="30" fill="none" stroke="${c}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C*f} ${C}" transform="rotate(-90 38 38)" style="transition:stroke-dasharray .5s"/></svg>`}
+function prefill(id){
+  const r=RAW.find(x=>x.CaseID===id); if(!r) return;
+  whoAns={time:r.OnsetDays<=7?0:r.OnsetDays<=21?1:2,known:r.ExpectednessReference==='Known'?0:1,dech:r.Dechallenge==='Positive'?0:r.Dechallenge==='Unknown'?1:2,rech:r.Rechallenge==='Positive'?0:r.Rechallenge==='Negative'?2:1,alt:r.ConcomitantMedicines==='None reported'?0:1};
+  narAns={}; r._nar.ans.forEach((a,i)=>narAns[i]=a);
+  renderTools(); toast(`Loaded ${id} — ${r.SuspectProduct} / ${r.Reaction}`);
+}
+function resetTools(){whoAns={};narAns={};$('#prefillSel').value='';renderTools()}
+
+function renderCausTable(){
+  $('#causBody').innerHTML=RAW.map(r=>{
+    const w=r._who.parts, why=[];
+    if(r.OnsetDays<=7) why.push('short latency'); else why.push(`${r.OnsetDays}-day latency`);
+    if(r.Rechallenge==='Positive') why.push('positive rechallenge');
+    if(r.Rechallenge==='Negative') why.push('negative rechallenge');
+    if(r.Dechallenge==='Positive') why.push('positive dechallenge');
+    if(r.Dechallenge==='Negative'||r.Dechallenge==='Not done') why.push('no improvement on withdrawal');
+    if(r.ExpectednessReference==='Unexpected') why.push('unlabelled reaction');
+    if(r.ConcomitantMedicines!=='None reported') why.push(`${r.ConcomitantMedicines.toLowerCase()} as alternative`);
+    return `<tr class="clickable" onclick="openCase('${r.CaseID}')"><td><span class="cid">${r.CaseID}</span></td><td><b style="font-weight:500">${r.SuspectProduct}</b> → ${r.Reaction}</td><td>${r.OnsetDays} d</td><td>${chBadge(r.Dechallenge)}</td><td>${chBadge(r.Rechallenge)}</td><td>${causBadge(r._who.cat)} <span class="td-sub">${r._who.score}</span></td><td>${narBadge(r._nar)}</td><td style="white-space:normal;min-width:240px;font-size:13px;color:var(--muted-2)">${why.join(' · ')}</td></tr>`}).join('');
+}
+
+/* ═════════ QUALITY ═════════ */
+function renderQuality(){
+  const all=RAW.flatMap(r=>r._q.map(f=>({...f,id:r.CaseID})));
+  const sevOrder={High:0,Medium:1,Low:2};
+  all.sort((a,b)=>sevOrder[a.sev]-sevOrder[b.sev]||a.id.localeCompare(b.id));
+  const cnt=countBy(all,f=>f.sev), affected=uniq(all.filter(f=>f.sev==='High').map(f=>f.id)).length;
+  $('#qKpis').innerHTML=[['Total flags',all.length,'Across all cases',100,'#0071E3'],['High priority',cnt.High||0,`${affected} cases affected`,pct(cnt.High||0,all.length),'#D92D20'],['Medium',cnt.Medium||0,'Should be clarified',pct(cnt.Medium||0,all.length),'#DC6803'],['Valid ICSRs',`${RAW.length}/${RAW.length}`,'All minimum criteria met',100,'#067647']]
+    .map(([l,v,s,p,c])=>`<div class="kpi"><div class="k-label">${l}</div><div class="k-val">${v}</div><div class="k-sub">${s}</div><div class="k-bar"><i style="width:${p}%;background:${c}"></i></div></div>`).join('');
+  $('#qBody').innerHTML=all.map(f=>`<tr class="clickable" onclick="openCase('${f.id}')"><td><span class="cid">${f.id}</span></td><td>${sevBadge(f.sev)}</td><td><b style="font-weight:500">${f.chk}</b></td><td style="white-space:normal;min-width:260px">${esc(f.txt)}</td><td style="white-space:normal;min-width:220px;color:var(--muted-2)">${esc(f.fu)}</td></tr>`).join('');
+}
+
+/* ═════════ REFERENCE ═════════ */
+function renderReference(){
+  $('#fgBody').innerHTML=FIELD_GUIDE.map(f=>`<tr><td><b style="font-weight:500">${f.f}</b></td><td>${f.req==='Yes'?'<span class="badge b-blue">Required</span>':'<span class="badge b-gray">Optional</span>'}</td><td style="white-space:normal;font-size:13px;color:var(--muted-2)">${f.g}</td><td class="td-sub">${f.s}</td></tr>`).join('');
+  $('#serCrit').innerHTML=SER_CRIT.map(([c,used])=>`<div class="check"><span class="ci ${used?'x':'n'}">${used?'✓':'·'}</span><span>${c}${used?` <span class="muted small">— ${RAW.filter(r=>r.Seriousness===(c.startsWith('Requires')?'Hospitalisation':'Medically important')).length} cases in this dataset</span>`:''}</span></div>`).join('');
+  $('#whoDefs').innerHTML=WHO_DEFS.map(d=>`<tr><td>${causBadge(d.cat)}</td><td style="white-space:normal;min-width:320px;font-size:13.5px">${d.def}</td><td class="mono">${d.band}</td><td>${d.nar}</td></tr>`).join('');
+  $('#concepts').innerHTML=CONCEPTS.map(([t,b])=>`<div class="concept"><h4>${t}</h4><p>${b}</p></div>`).join('');
+  $('#faq').innerHTML=FAQ.map(([q,a])=>`<details class="faq"><summary>${q}</summary><p>${a}</p></details>`).join('');
+}
+
+/* ═════════ REPORT ═════════ */
+function renderReport(){
+  const n=RAW.length, ser=RAW.filter(r=>r._serious).length, wc=countBy(RAW,r=>r._who.cat), nc=countBy(RAW,r=>r._nar.cat);
+  const high=RAW.reduce((s,r)=>s+r._q.filter(f=>f.sev==='High').length,0);
+  $('#reportBody').innerHTML=`
+    <div class="r-head">
+      <div><div class="eyebrow">ADR Identification Summary</div><h2 style="font-size:28px;letter-spacing:-.02em">Pharmacovigilance Task 1</h2><p class="muted small" style="margin-top:4px">Workora Synthetic Pharmacovigilance Training Pack · Educational use only</p></div>
+      <div class="small muted" style="text-align:right">Generated<br/><b style="color:var(--ink)">${new Date().toLocaleString()}</b></div>
+    </div>
+    <h3>1. Objective</h3>
+    <p>Identify suspect drugs and correlate adverse event timelines in ${n} fictional case reports, assess seriousness and expectedness, and estimate drug–event causality using WHO-UMC and Naranjo criteria.</p>
+    <h3>2. Key findings</h3>
+    <ul>
+      <li>${ser} of ${n} cases (${pct(ser,n)}%) were serious — ${RAW.filter(r=>r.Seriousness==='Hospitalisation').length} hospitalisations and ${RAW.filter(r=>r.Seriousness==='Medically important').length} medically important events.</li>
+      <li>${RAW.filter(r=>r.ExpectednessReference==='Unexpected').length} reactions were unexpected (Losartan / fatigue); both were non-serious.</li>
+      <li>Mean time to onset was ${(RAW.reduce((s,r)=>s+r.OnsetDays,0)/n).toFixed(1)} days; ${RAW.filter(r=>r.OnsetDays<=7).length} reactions began within the first week.</li>
+      <li>WHO-UMC heuristic: ${Object.entries(wc).map(([k,v])=>`${k} ${v}`).join(', ')}. Naranjo: ${Object.entries(nc).map(([k,v])=>`${k} ${v}`).join(', ')}.</li>
+      <li>${high} high-priority data conflicts were found, including implausible doses and dechallenge results that contradict the narrative.</li>
+      <li>All ${n} reports meet the four minimum criteria for a valid ICSR.</li>
+    </ul>
+    <h3>3. Case-level identification</h3>
+    <div style="overflow-x:auto"><table><thead><tr><th>Case</th><th>Patient</th><th>Suspect drug</th><th>Reaction</th><th>Onset</th><th>Seriousness</th><th>Expected</th><th>Outcome</th><th>WHO-UMC</th><th>Naranjo</th></tr></thead><tbody>
+    ${RAW.map(r=>`<tr><td class="cid">${r.CaseID}</td><td>${r.Age} ${r.Sex[0]}</td><td>${r.SuspectProduct}</td><td>${r.Reaction}</td><td>${r.OnsetDays} d</td><td>${r.Seriousness}</td><td>${r.ExpectednessReference}</td><td>${r.Outcome}</td><td>${causBadge(r._who.cat)}</td><td>${r._nar.cat} (${r._nar.score})</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3>4. Drug-level summary</h3>
+    <div style="overflow-x:auto"><table><thead><tr><th>Drug</th><th>Class</th><th>Cases</th><th>Reaction</th><th>Serious</th><th>Onset range</th><th>Labelled?</th></tr></thead><tbody>
+    ${ALL_DRUGS.map(d=>{const c=RAW.filter(r=>r.SuspectProduct===d);return `<tr><td><b style="font-weight:500">${d}</b></td><td class="td-sub">${DRUGS[d].cls}</td><td>${c.length}</td><td>${uniq(c.map(r=>r.Reaction)).join(', ')}</td><td>${c.filter(r=>r._serious).length}</td><td>${Math.min(...c.map(r=>r.OnsetDays))}–${Math.max(...c.map(r=>r.OnsetDays))} d</td><td>${c[0].ExpectednessReference}</td></tr>`}).join('')}
+    </tbody></table></div>
+    <h3>5. Method</h3>
+    <p>Each case was checked for the four minimum ICSR elements, classified for regulatory seriousness (ICH E2A) and expectedness against the pack reference, then scored with a transparent WHO-UMC points heuristic (temporal relationship, expectedness, dechallenge, rechallenge, concomitant medicines) and the 10-item Naranjo algorithm. Outcomes were taken from the narratives.</p>
+    <h3>6. Limitations</h3>
+    <ul>
+      <li>Data are synthetic; several fields contradict their narratives and would require follow-up.</li>
+      <li>Concomitant medicines were not assessed as alternative causes beyond their presence; medical history is not recorded.</li>
+      <li>Causality scores are structured aids, not a substitute for clinical judgement. Reporting frequency does not establish causation.</li>
+    </ul>
+    <div class="callout warn" style="margin-top:28px"><span>⚠️</span><span>Every case and identifier is fictional and de-identified. This report is for educational analysis only and must not be used for clinical care or regulatory submission.</span></div>`;
+}
+
+/* ═════════ EXPORT ═════════ */
+function exportCSV(){
+  const cols=['CaseID','Age','Sex','SuspectProduct','Dose','Route','Indication','Reaction','OnsetDays','ExpectednessReference','Seriousness','Dechallenge','Rechallenge','ConcomitantMedicines','Reporter','Outcome'];
+  const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const lines=[[...cols,'WHO_UMC_Score','WHO_UMC_Category','Naranjo_Score','Naranjo_Category','DataQualityFlags'].join(','),
+    ...RAW.map(r=>[...cols.map(c=>q(r[c])),r._who.score,q(r._who.cat),r._nar.score,q(r._nar.cat),q(r._q.map(f=>f.chk).join('; '))].join(','))];
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='adr_identification_results.csv'; a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV downloaded — 18 cases with causality and quality flags');
+}
+function printReport(){renderReport(); closeCase(); setTimeout(()=>window.print(),150)}
+let tt; function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600)}
+
+/* ═════════ NAV / REVEAL ═════════ */
+function initScroll(){
+  const links=[...document.querySelectorAll('.nav-links a')];
+  const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+e.target.id))}}),{rootMargin:'-45% 0px -50% 0px'});
+  secs.forEach(s=>s&&io.observe(s));
+  links.forEach(l=>l.addEventListener('click',()=>$('#navLinks').classList.remove('open')));
+  const rv=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rv.unobserve(e.target)}}),{threshold:.08});
+  document.querySelectorAll('.reveal').forEach(el=>rv.observe(el));
+}
+
+/* ═════════ INIT ═════════ */
+renderHero(); renderKPIs(); initFilters(); applyFilters(); renderHeat(); renderDemo(); renderDrugs(); renderTools(); renderCausTable(); renderQuality(); renderReference(); renderReport(); initScroll();
+if(document.readyState==='complete') buildCharts(); else window.addEventListener('load',buildCharts);
+</script>
 </body>
 </html>
